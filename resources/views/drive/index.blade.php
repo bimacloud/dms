@@ -20,6 +20,7 @@ document.addEventListener('alpine:init', () => {
         showShareModal: false,
         shareModalDocId: '',
         shareModalDocTitle: '',
+        shareModalDocType: 'file',
         showPreviewModal: false,
         previewUrl: '',
         previewName: '',
@@ -55,9 +56,10 @@ document.addEventListener('alpine:init', () => {
             
             this.contextMenuOpen = true;
         },
-        openShareModal(id, title) {
+        openShareModal(id, title, type = 'file') {
             this.shareModalDocId = id;
             this.shareModalDocTitle = title;
+            this.shareModalDocType = type;
             this.showShareModal = true;
         },
         openDeleteModal(type, title, actionTarget) {
@@ -341,7 +343,7 @@ document.addEventListener('alpine:init', () => {
                                     <button @click.stop.prevent="openMoveModal('file', '{{ $file->id }}')" class="p-2 bg-white rounded-lg hover:text-purple-600 transition-colors" title="Move">
                                         <i data-lucide="folder-output" class="w-4 h-4"></i>
                                     </button>
-                                    <button @click.stop.prevent="openShareModal('{{ $file->id }}', '{{ addslashes($file->display_name) }}')" class="p-2 bg-white rounded-lg hover:text-blue-500 transition-colors" title="Share">
+                                    <button @click.stop.prevent="openShareModal('{{ $file->id }}', '{{ addslashes($file->display_name) }}', 'file')" class="p-2 bg-white rounded-lg hover:text-blue-500 transition-colors" title="Share">
                                         <i data-lucide="share-2" class="w-4 h-4"></i>
                                     </button>
                                     <button @click.stop.prevent="openDeleteModal('file', '{{ addslashes($file->display_name) }}', '{{ route('documents.destroy', $file->id) }}')" class="p-2 bg-white rounded-lg hover:text-red-600 transition-colors" title="Delete">
@@ -487,7 +489,7 @@ document.addEventListener('alpine:init', () => {
                 <button @click="openMoveModal('folder', contextMenuFolder.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
                     <i data-lucide="folder-output" class="w-4 h-4 mr-3 text-gray-400"></i> Move To
                 </button>
-                <button @click="openShareModal(contextMenuFolder.id, contextMenuFolder.name); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
+                <button @click="openShareModal(contextMenuFolder.id, contextMenuFolder.name, 'folder'); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
                     <i data-lucide="share-2" class="w-4 h-4 mr-3 text-indigo-400"></i> Share Folder
                 </button>
                 <div class="h-px bg-gray-100 my-1 w-full"></div>
@@ -507,7 +509,7 @@ document.addEventListener('alpine:init', () => {
                     <i data-lucide="download-cloud" class="w-4 h-4 mr-3 text-green-400"></i> Download
                 </a>
                 <div class="h-px bg-gray-100 my-1 w-full"></div>
-                <button @click="openShareModal(contextMenuFile.id, contextMenuFile.display_name); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
+                <button @click="openShareModal(contextMenuFile.id, contextMenuFile.display_name, 'file'); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
                     <i data-lucide="share-2" class="w-4 h-4 mr-3 text-indigo-400"></i> Share
                 </button>
                 <button @click="openMoveModal('file', contextMenuFile.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">

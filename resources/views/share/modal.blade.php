@@ -6,12 +6,47 @@
     
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col"
          @click.away="showShareModal = false"
-         x-data="{ activeTab: 'public' }">
+         x-data="{ 
+            activeTab: 'public',
+            isGenerating: false,
+            generatedLink: '',
+            error: '',
+            async generatePublicLink() {
+                this.isGenerating = true;
+                this.error = '';
+                this.generatedLink = '';
+                
+                try {
+                    const formData = new FormData(this.$refs.publicForm);
+                    const response = await fetch('{{ route('share_links.store') }}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        this.generatedLink = data.link;
+                    } else {
+                        this.error = data.message || 'Something went wrong';
+                    }
+                } catch (err) {
+                    this.error = 'Failed to generate link';
+                } finally {
+                    this.isGenerating = false;
+                }
+            }
+         }"
+         @open-share-modal.window="generatedLink = ''; error = '';">
         
         <!-- Header -->
         <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
             <div>
-                <h3 class="text-lg font-bold text-gray-800">Share Document</h3>
+                <h3 class="text-lg font-bold text-gray-800" x-text="shareModalDocType === 'file' ? 'Share Document' : 'Share Folder'"></h3>
                 <p class="text-xs text-gray-500 mt-1" x-text="shareModalDocTitle"></p>
             </div>
             <button @click="showShareModal = false" class="text-gray-400 hover:text-gray-600 transition-colors p-2 bg-white rounded-full shadow-sm hover:shadow">
@@ -19,7 +54,21 @@
             </button>
         </div>
 
-        <!-- Success Message from session -->
+        <!-- Generated Link Section (AJAX Success) -->
+        <div x-show="generatedLink" x-transition class="px-6 py-4 bg-green-50 border-b border-green-100 flex flex-col items-start gap-2">
+            <p class="text-sm font-bold text-green-700">Link Generated:</p>
+            <div class="flex items-center w-full gap-2">
+                <input type="text" readonly :value="generatedLink" class="flex-1 text-xs px-3 py-2 bg-white border border-green-200 rounded-lg outline-none text-gray-600" id="shareLinkInputAjx">
+                <button type="button" @click="navigator.clipboard.writeText(generatedLink); alert('Copied!')" class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors">Copy</button>
+            </div>
+        </div>
+
+        <!-- Error Message (AJAX Error) -->
+        <div x-show="error" x-transition class="px-6 py-3 bg-red-50 border-b border-red-100">
+            <p class="text-xs font-bold text-red-600" x-text="error"></p>
+        </div>
+
+        <!-- Success Message from session (Fallback) -->
         @if(session('success') && session('share_link'))
             <div class="px-6 py-4 bg-green-50 border-b border-green-100 flex flex-col items-start gap-2">
                 <p class="text-sm font-bold text-green-700">Link Generated:</p>
@@ -54,9 +103,10 @@
         <div class="p-6">
             <!-- Public Link Form -->
             <div x-show="activeTab === 'public'" x-transition>
-                <form action="{{ route('share_links.store') }}" method="POST" class="space-y-4">
+                <form x-ref="publicForm" @submit.prevent="generatePublicLink()" class="space-y-4">
                     @csrf
-                    <input type="hidden" name="document_id" :value="shareModalDocId">
+                    <input type="hidden" name="shareable_id" :value="shareModalDocId">
+                    <input type="hidden" name="shareable_type" :value="shareModalDocType">
                     
                     <div x-data="{ enablePassword: false, enableExpiry: false }">
                         <div class="space-y-3">
@@ -87,13 +137,17 @@
                                 </label>
                             </div>
                             <div x-show="enableExpiry" x-transition x-cloak class="px-1">
-                                <input type="datetime-local" name="expired_at" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" :required="enableExpiry">
+                                <input type="datetime-local" name="expires_at" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" :required="enableExpiry">
                             </div>
                         </div>
 
                         <div class="mt-6 text-right">
-                            <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm">
-                                Generate Public Link
+                            <button type="submit" 
+                                    :disabled="isGenerating"
+                                    class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ml-auto">
+                                <span x-show="!isGenerating">Generate Public Link</span>
+                                <span x-show="isGenerating">Generating...</span>
+                                <i x-show="isGenerating" data-lucide="loader" class="w-3 h-3 animate-spin"></i>
                             </button>
                         </div>
                     </div>

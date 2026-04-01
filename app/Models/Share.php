@@ -49,4 +49,26 @@ class Share extends Model
     {
         return $this->belongsTo(User::class, 'shared_with_id');
     }
+
+    /* --- Compatibility Aliases for Views --- */
+
+    public function getTokenAttribute()
+    {
+        return $this->access_token;
+    }
+
+    public function getDocumentAttribute()
+    {
+        return $this->shareable_type === File::class ? $this->shareable : null;
+    }
+
+    public function getCreatorAttribute()
+    {
+        return $this->owner;
+    }
+
+    public function getExpiredAtAttribute()
+    {
+        return $this->expires_at;
+    }
 }

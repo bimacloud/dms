@@ -64,4 +64,9 @@ class File extends Model
     {
         return $this->morphMany(Share::class, 'shareable');
     }
+
+    public function getTitleAttribute()
+    {
+        return $this->display_name;
+    }
 }
