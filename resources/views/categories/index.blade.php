@@ -56,61 +56,78 @@
             </div>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-50/50">
-                        <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Category Name</th>
-                        <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Description</th>
-                        <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-center">Docs</th>
-                        <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    @forelse ($categories as $cat)
-                        <tr class="hover:bg-blue-50/30 transition-colors group">
-                            <td class="px-6 py-5">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                                        <i data-lucide="folder" class="w-4 h-4"></i>
-                                    </div>
-                                    <span class="text-sm font-bold text-gray-900">{{ $cat->name }}</span>
-                                </div>
-                            </td>
-                            <td class="px-6 py-5">
-                                <span class="text-sm text-gray-500">{{ Str::limit($cat->description ?: '-', 50) }}</span>
-                            </td>
-                            <td class="px-6 py-5 text-center">
-                                <a href="{{ route('documents.index', ['category_id' => $cat->id]) }}" 
-                                   class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100/50">
-                                    {{ $cat->files_count }}
-                                </a>
-                            </td>
-                            <td class="px-6 py-5 text-right space-x-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6">
+            @forelse ($categories as $cat)
+                @php
+                    // Generate a consistent gradient based on title
+                    $hash = substr(md5($cat->name), 0, 6);
+                    $colors = [
+                        'blue' => 'from-blue-500 to-indigo-600 shadow-blue-200',
+                        'purple' => 'from-purple-500 to-pink-600 shadow-purple-200',
+                        'amber' => 'from-amber-400 to-orange-600 shadow-amber-200',
+                        'emerald' => 'from-emerald-400 to-teal-600 shadow-emerald-200',
+                        'rose' => 'from-rose-400 to-red-600 shadow-rose-200',
+                        'indigo' => 'from-indigo-400 to-blue-700 shadow-indigo-200',
+                    ];
+                    $keys = array_keys($colors);
+                    $colorKey = $keys[hexdec(substr($hash, 0, 1)) % count($keys)];
+                    $gradient = $colors[$colorKey];
+                @endphp
+                <div class="group relative bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-100/50 hover:shadow-2xl hover:shadow-gray-200/60 transition-all duration-500 hover:-translate-y-2 overflow-hidden flex flex-col h-full">
+                    <!-- Top Gradient Accent -->
+                    <div class="h-24 w-full bg-gradient-to-br {{ $gradient }} relative overflow-hidden">
+                        <div class="absolute inset-0 bg-white/10 backdrop-blur-[2px]"></div>
+                        <div class="absolute -top-10 -right-10 w-32 h-32 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                        
+                        <div class="absolute bottom-0 left-0 p-6 flex items-center justify-between w-full">
+                            <div class="w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-500">
+                                <i data-lucide="layers" class="w-6 h-6 text-gray-800"></i>
+                            </div>
+                            <span class="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black text-white uppercase tracking-widest border border-white/30">
+                                {{ $cat->files_count }} Docs
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="p-6 flex-1 flex flex-col">
+                        <h3 class="text-sm font-black text-gray-900 mb-2 truncate group-hover:text-blue-600 transition-colors">{{ $cat->name }}</h3>
+                        <p class="text-[11px] text-gray-500 leading-relaxed mb-6 line-clamp-3">
+                            {{ $cat->description ?: 'No description provided for this category.' }}
+                        </p>
+
+                        <div class="mt-auto flex items-center justify-between pt-4 border-t border-gray-50">
+                            <div class="flex gap-1">
                                 <button @click="editMode = true; category = { id: '{{ $cat->id }}', name: '{{ addslashes($cat->name) }}', description: '{{ addslashes($cat->description) }}' }; openModal = true" 
-                                    class="p-2 text-gray-400 hover:text-blue-600 transition-colors inline-block" title="Edit">
+                                        class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Edit">
                                     <i data-lucide="edit-3" class="w-4 h-4"></i>
                                 </button>
                                 @if(auth()->user()->role->name === 'root')
                                     <form action="{{ route('categories.destroy', $cat->id) }}" method="POST" class="inline" onsubmit="return confirm('Archive this category?')">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Delete">
-                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        <button type="submit" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" title="Archive">
+                                            <i data-lucide="archive" class="w-4 h-4"></i>
                                         </button>
                                     </form>
                                 @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="4" class="px-6 py-20 text-center">
-                                <i data-lucide="database" class="w-12 h-12 text-gray-100 mx-auto mb-4"></i>
-                                <p class="text-gray-400 text-sm font-medium">No categories matching your filter.</p>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                            </div>
+                            <a href="{{ route('documents.index', ['category_id' => $cat->id]) }}" 
+                               class="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase tracking-widest hover:translate-x-1 transition-transform">
+                                View Items
+                                <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @empty
+                <div class="col-span-full py-20 text-center">
+                    <div class="w-20 h-20 bg-gray-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                        <i data-lucide="search-x" class="w-10 h-10 text-gray-300"></i>
+                    </div>
+                    <h3 class="text-gray-900 font-bold mb-1">No Categories Found</h3>
+                    <p class="text-gray-400 text-xs">Try adjusting your search criteria or create a new one.</p>
+                </div>
+            @endforelse
         </div>
 
         @if($categories->hasPages())

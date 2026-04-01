@@ -31,12 +31,32 @@ class DashboardController extends Controller
             ? File::latest()->limit(5)->get()
             : File::where('user_id', $user->id)->latest()->limit(5)->get();
 
+        $folderCount = $isAdmin
+            ? \App\Models\Folder::count()
+            : \App\Models\Folder::where('user_id', $user->id)->count();
+
+        $recentFolders = $isAdmin
+            ? \App\Models\Folder::latest()->limit(4)->get()
+            : \App\Models\Folder::where('user_id', $user->id)->latest()->limit(4)->get();
+
+        $storageUsed = $user->raw_disk_space_bytes;
+        $storageQuota = $user->disk_quota;
+        $storageUsedFormatted = $user->total_disk_space;
+        $storageQuotaFormatted = $user->formatted_disk_quota;
+        
+        $storagePercentage = ($storageQuota > 0) ? min(100, round(($storageUsed / $storageQuota) * 100)) : 0;
+
         return view('dashboard', compact(
             'isAdmin',
             'fileCount',
+            'folderCount',
             'catCount',
             'sharedCount',
-            'recentFiles'
+            'recentFiles',
+            'recentFolders',
+            'storageUsedFormatted',
+            'storageQuotaFormatted',
+            'storagePercentage'
         ));
     }
 }

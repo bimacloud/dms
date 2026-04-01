@@ -12,6 +12,26 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         [x-cloak] { display: none !important; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+        
+        .active-menu-glow {
+            position: relative;
+        }
+        .active-menu-glow::after {
+            content: '';
+            position: absolute;
+            left: -12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 16px;
+            background: #3b82f6;
+            border-radius: 0 4px 4px 0;
+            box-shadow: 0 0 10px #3b82f6;
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-sans text-gray-900" x-data="{ sidebarOpen: true, mobileSidebarOpen: false }">
@@ -69,8 +89,8 @@
     </div>
 
     <!-- Desktop Sidebar -->
-    <div :class="sidebarOpen ? 'w-64' : 'w-20'" class="hidden lg:flex flex-col fixed inset-y-0 bg-gray-900 transition-all duration-300 z-30 overflow-hidden border-r border-gray-800 shadow-xl">
-        <div class="p-6 border-b border-gray-800 flex items-center justify-between h-16 bg-gray-900/50 backdrop-blur-md sticky top-0 z-10">
+    <div :class="sidebarOpen ? 'w-64' : 'w-20'" class="hidden lg:flex flex-col fixed inset-y-0 bg-[#0f172a] transition-all duration-300 z-30 overflow-hidden border-r border-slate-800 shadow-[20px_0_50px_rgba(0,0,0,0.1)]">
+        <div class="p-6 border-b border-slate-800/50 flex items-center justify-between h-16 bg-[#0f172a]/50 backdrop-blur-xl sticky top-0 z-10">
             <div class="flex items-center space-x-2" x-show="sidebarOpen" x-transition>
                 <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
                     <i data-lucide="folder-key" class="w-5 h-5 text-white"></i>
@@ -86,8 +106,8 @@
         </nav>
 
         <!-- User Profile Area -->
-        <div class="p-4 border-t border-gray-800 bg-gray-900/50">
-            <div class="flex items-center" :class="sidebarOpen ? 'p-3 bg-gray-800/50 rounded-xl' : 'justify-center p-2'" title="{{ auth()->user()->name }} ({{ auth()->user()->role->name }})">
+        <div class="p-4 border-t border-slate-800/50 bg-[#0f172a]/80 backdrop-blur-md">
+            <div class="flex items-center" :class="sidebarOpen ? 'p-3 bg-slate-800/30 rounded-2xl border border-slate-700/30' : 'justify-center p-2'" title="{{ auth()->user()->name }} ({{ auth()->user()->role->name }})">
                 <div class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center font-bold border {{ auth()->user()->role->name === 'root' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30' }}">
                     {{ substr(auth()->user()->name, 0, 1) }}
                 </div>
@@ -107,8 +127,8 @@
     <!-- Main Content -->
     <div :class="sidebarOpen ? 'lg:pl-64' : 'lg:pl-20'" class="flex flex-col flex-1 transition-all duration-300 min-h-screen">
         <!-- Topbar -->
-        <header class="bg-white/80 backdrop-blur-md border-b border-gray-100 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 sticky top-0 z-20">
-            <button @click="mobileSidebarOpen = true" class="lg:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
+        <header class="bg-white/70 backdrop-blur-2xl border-b border-slate-100 h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 sticky top-0 z-20 shadow-sm shadow-slate-200/20">
+            <button @click="mobileSidebarOpen = true" class="lg:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all">
                 <i data-lucide="menu" class="w-6 h-6"></i>
             </button>
             

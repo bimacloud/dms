@@ -16,30 +16,35 @@
 
         $isActive = $isCurrentActive || $isChildActive;
     @endphp
+    @php
+        $shouldSkip = (auth()->user()->role->name === 'member' && str_contains(strtolower($item->name), 'categor'));
+    @endphp
 
-    <div x-data="{ open: {{ $isActive ? 'true' : 'false' }} }">
+    @if(!$shouldSkip)
+    <div x-data="{ open: {{ $isActive ? 'true' : 'false' }} }" class="relative">
         @if ($hasChildren)
             <button @click="open = !open" 
-                class="w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors
-                {{ $isActive ? 'bg-gray-800 text-white' : 'text-gray-300 hover:bg-gray-800 hover:text-white' }}">
+                class="w-full flex items-center justify-between px-3 py-2.5 text-xs font-bold rounded-xl transition-all duration-300
+                {{ $isActive ? 'bg-slate-800/50 text-white border border-slate-700/50 shadow-sm' : 'text-slate-400 hover:bg-slate-800/30 hover:text-white' }}">
                 <div class="flex items-center">
-                    <i data-lucide="{{ $item->icon ?: 'circle' }}" class="w-5 h-5 mr-3"></i>
+                    <i data-lucide="{{ $item->icon ?: 'circle' }}" class="w-4 h-4 mr-3 {{ $isActive ? 'text-blue-400' : 'text-slate-500' }}"></i>
                     <span x-show="sidebarOpen" x-cloak>{{ $item->name }}</span>
                 </div>
                 <i x-show="sidebarOpen" data-lucide="chevron-down" 
-                    :class="open ? 'rotate-180' : ''" 
-                    class="w-4 h-4 transition-transform" x-cloak></i>
+                    :class="open ? 'rotate-180 text-blue-400' : 'text-slate-500'" 
+                    class="w-3 h-3 transition-transform" x-cloak></i>
             </button>
-            <div x-show="open && sidebarOpen" class="mt-1 space-y-1 ml-4" x-cloak>
+            <div x-show="open && sidebarOpen" class="mt-1 space-y-1 ml-4 border-l border-slate-800 pl-2" x-transition x-cloak>
                 @include('partials.sidebar-items', ['items' => $item->children])
             </div>
         @else
             <a href="{{ $item->route ? route($item->route) : '#' }}" 
-                class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
-                {{ $isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-800 hover:text-white' }}">
-                <i data-lucide="{{ $item->icon ?: 'circle' }}" class="w-5 h-5 mr-3"></i>
+                class="flex items-center px-3 py-2.5 text-xs font-bold rounded-xl transition-all duration-300 group
+                {{ $isActive ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.1)] active-menu-glow' : 'text-slate-400 hover:bg-slate-800/30 hover:text-white' }}">
+                <i data-lucide="{{ $item->icon ?: 'circle' }}" class="w-4 h-4 mr-3 {{ $isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-white' }}"></i>
                 <span x-show="sidebarOpen" x-cloak>{{ $item->name }}</span>
             </a>
         @endif
     </div>
+    @endif
 @endforeach
