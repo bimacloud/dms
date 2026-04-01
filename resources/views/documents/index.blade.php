@@ -135,8 +135,8 @@ class="relative min-h-screen">
                     <!-- Inputs & Action -->
                     <div class="lg:flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="space-y-1" x-show="filePreview !== 'multiple'">
-                            <label class="text-[10px] font-bold text-gray-400 uppercase">Document Title</label>
-                            <input type="text" name="title" class="w-full rounded-xl border-gray-100 bg-gray-50 p-3 text-sm focus:bg-white focus:border-blue-400 border outline-none transition-all" :required="filePreview !== 'multiple'" placeholder="e.g. Invoice #123">
+                            <label class="text-[10px] font-bold text-gray-400 uppercase">File Name</label>
+                            <input type="text" name="display_name" class="w-full rounded-xl border-gray-100 bg-gray-50 p-3 text-sm focus:bg-white focus:border-blue-400 border outline-none transition-all" :required="filePreview !== 'multiple'" placeholder="e.g. Invoice #123">
                         </div>
                         <div class="space-y-1 text-right" :class="{'md:col-span-2 text-left': filePreview === 'multiple'}">
                             <label class="text-[10px] font-bold text-gray-400 uppercase text-left block">Category</label>
@@ -192,28 +192,41 @@ class="relative min-h-screen">
 
     <!-- Simplified Document Grid -->
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        @forelse ($documents as $doc)
+        @forelse ($files as $file)
             <div class="bg-white rounded-xl shadow-sm border border-gray-50 overflow-hidden group hover:border-blue-200 transition-all">
-                <div class="aspect-square bg-gray-50 flex items-center justify-center relative group-hover:bg-blue-50 transition-colors">
-                    @if(str_contains($doc->file_type, 'image'))
-                        <img src="{{ route('documents.preview', $doc->id) }}" class="w-full h-full object-cover">
+                <div class="aspect-square bg-gray-50 flex items-center justify-center relative group-hover:bg-blue-50 transition-colors cursor-pointer" 
+                    @click="previewUrl = '{{ route('documents.preview', $file->id) }}'; previewType = '{{ $file->mime_type }}'; fileName = '{{ addslashes($file->display_name) }}'">
+                    @if($file->thumbnail_path)
+                        <img src="{{ route('documents.thumbnail', $file->id) }}" class="w-full h-full object-cover">
+                    @elseif(str_contains($file->mime_type, 'image'))
+                        <img src="{{ route('documents.preview', $file->id) }}" class="w-full h-full object-cover">
                     @else
-                        <i data-lucide="file-text" class="w-12 h-12 text-gray-200 group-hover:text-red-300 transition-colors"></i>
+                        <div class="flex flex-col items-center">
+                            @php
+                                $icon = 'file-text';
+                                if (str_contains($file->mime_type, 'pdf')) $icon = 'file-type-2';
+                                if (str_contains($file->mime_type, 'zip') || str_contains($file->mime_type, 'rar')) $icon = 'archive';
+                                if (str_contains($file->mime_type, 'video')) $icon = 'video';
+                                if (str_contains($file->mime_type, 'audio')) $icon = 'music';
+                            @endphp
+                            <i data-lucide="{{ $icon }}" class="w-12 h-12 text-blue-200 group-hover:text-blue-300 transition-colors"></i>
+                            <span class="text-[10px] uppercase font-bold text-gray-400 mt-2">{{ $file->extension }}</span>
+                        </div>
                     @endif
                     
                     <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        <button @click="previewUrl = '{{ route('documents.preview', $doc->id) }}'; previewType = '{{ $doc->file_type }}'" 
+                        <button @click.stop="previewUrl = '{{ route('documents.preview', $file->id) }}'; previewType = '{{ $file->mime_type }}'; fileName = '{{ addslashes($file->display_name) }}'" 
                             class="p-2 bg-white rounded-lg hover:text-blue-600 transition-colors" title="View">
                             <i data-lucide="eye" class="w-4 h-4"></i>
                         </button>
-                        <a href="{{ route('documents.download', $doc->id) }}" class="p-2 bg-white rounded-lg hover:text-green-600 transition-colors" title="Download">
+                        <a href="{{ route('documents.download', $file->id) }}" @click.stop class="p-2 bg-white rounded-lg hover:text-green-600 transition-colors" title="Download">
                             <i data-lucide="download" class="w-4 h-4"></i>
                         </a>
-                        @if(auth()->user()->role->name === 'root' || $doc->uploaded_by === auth()->id())
-                            <button @click="openShareModal({{ $doc->id }}, '{{ addslashes($doc->title) }}')" class="p-2 bg-white rounded-lg hover:text-purple-600 transition-colors" title="Share">
+                        @if(auth()->user()->role->name === 'root' || $file->user_id === auth()->id())
+                            <button @click.stop="openShareModal('{{ $file->id }}', '{{ addslashes($file->display_name) }}')" class="p-2 bg-white rounded-lg hover:text-purple-600 transition-colors" title="Share">
                                 <i data-lucide="share-2" class="w-4 h-4"></i>
                             </button>
-                            <form action="{{ route('documents.destroy', $doc->id) }}" method="POST" onsubmit="return confirm('Delete?')">
+                            <form action="{{ route('documents.destroy', $file->id) }}" method="POST" onsubmit="return confirm('Delete?')" @click.stop>
                                 @csrf @method('DELETE')
                                 <button class="p-2 bg-white rounded-lg hover:text-red-600 transition-colors">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -224,45 +237,58 @@ class="relative min-h-screen">
                 </div>
                 <div class="p-3">
                     <div class="flex justify-between items-start mb-1">
-                        <span class="text-[8px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded uppercase">{{ $doc->category->name }}</span>
+                        @if($file->category)
+                            <span class="text-[8px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded uppercase">{{ $file->category->name }}</span>
+                        @endif
                     </div>
-                    <h4 class="text-xs font-bold text-gray-800 truncate" title="{{ $doc->title }}">{{ $doc->title }}</h4>
-                    <p class="text-[9px] text-gray-400 mt-0.5">{{ $doc->created_at->format('M d, Y') }}</p>
+                    <h4 class="text-xs font-bold text-gray-800 truncate" title="{{ $file->display_name }}">{{ $file->display_name }}</h4>
+                    <p class="text-[9px] text-gray-400 mt-0.5">{{ $file->created_at->format('M d, Y') }}</p>
                 </div>
             </div>
         @empty
             <div class="col-span-full py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                <p class="text-xs text-gray-400">No documents found.</p>
+                <p class="text-xs text-gray-400">No files found.</p>
             </div>
         @endforelse
     </div>
 
-    <!-- Inline Preview Overlay -->
+    <!-- Dynamic Preview Overlay -->
     <div x-show="previewUrl" 
-         class="fixed inset-0 z-[60] flex items-center justify-center p-4 md:p-10 bg-gray-900/90 backdrop-blur-sm"
+         class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md"
          x-transition x-cloak>
-        <div class="relative w-full h-full max-w-5xl bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col" @click.away="closePreview()">
-            <div class="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
-                <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Document Preview</span>
-                <button @click="closePreview()" class="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                    <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
-                </button>
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden" @click.away="closePreview()">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-blue-50 rounded-xl">
+                        <i data-lucide="file-text" class="w-5 h-5 text-blue-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-800" x-text="fileName"></h3>
+                        <p class="text-[10px] text-gray-400 font-medium">Document Preview</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a :href="previewUrl" download class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Download">
+                        <i data-lucide="download" class="w-5 h-5"></i>
+                    </a>
+                    <button @click="closePreview()" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
             </div>
             <div class="flex-1 bg-gray-100 relative overflow-hidden">
-                <template x-if="previewType && previewType.includes('image')">
-                    <div class="w-full h-full flex items-center justify-center p-8">
-                        <img :src="previewUrl" class="max-w-full max-h-full object-contain shadow-lg rounded-lg">
-                    </div>
+                <template x-if="previewUrl">
+                    <iframe :src="previewUrl" class="w-full h-full border-none bg-white" @load="$el.classList.remove('opacity-0')"></iframe>
                 </template>
-                <template x-if="previewType && !previewType.includes('image')">
-                    <iframe :src="previewUrl" class="w-full h-full border-none bg-white"></iframe>
-                </template>
+                <div class="absolute inset-0 flex items-center justify-center -z-10">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
             </div>
         </div>
     </div>
 
     <div class="mt-8">
-        {{ $documents->links() }}
+        {{ $files->links() }}
     </div>
 
     <!-- Drag Overlay -->

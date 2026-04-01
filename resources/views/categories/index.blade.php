@@ -83,7 +83,7 @@
                             <td class="px-6 py-5 text-center">
                                 <a href="{{ route('documents.index', ['category_id' => $cat->id]) }}" 
                                    class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100/50">
-                                    {{ $cat->documents_count }}
+                                    {{ $cat->files_count }}
                                 </a>
                             </td>
                             <td class="px-6 py-5 text-right space-x-2">

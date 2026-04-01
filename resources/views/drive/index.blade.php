@@ -3,189 +3,220 @@
 @section('header', 'My Drive')
 
 @section('content')
-<div class="flex flex-col md:flex-row h-full w-full gap-6 max-w-7xl mx-auto" x-data="{
-    showNewFolderModal: false,
-    folderToRename: null,
-    folderName: '',
-    showMoveModal: false,
-    moveType: 'document',
-    moveId: null,
-    moveTargetUrl: '',
-    folderToRename: null,
-    folderName: '',
-    showMoveModal: false,
-    moveType: 'document',
-    moveId: null,
-    moveTargetUrl: '',
-    showDeleteModal: false,
-    deleteFormAction: '',
-    deleteTitle: '',
-    deleteType: '',
-    showShareModal: false,
-    shareModalDocId: '',
-    shareModalDocTitle: '',
-    contextMenuOpen: false,
-    contextMenuX: 0,
-    contextMenuY: 0,
-    contextMenuType: '', // 'bg', 'folder', 'file'
-    contextMenuFolder: null, // {id, name}
-    contextMenuFile: null, // {id, name, type}
-    showContextMenu(e, type, item = null) {
-        this.contextMenuType = type;
-        if (type === 'folder') this.contextMenuFolder = item;
-        if (type === 'file') this.contextMenuFile = item;
-        
-        this.contextMenuX = e.clientX;
-        this.contextMenuY = e.clientY;
-        
-        this.$nextTick(() => {
-            const menu = this.$refs.ctxMenu;
-            if(menu) {
-                const rect = menu.getBoundingClientRect();
-                if(this.contextMenuX + rect.width > window.innerWidth) this.contextMenuX -= rect.width;
-                if(this.contextMenuY + rect.height > window.innerHeight) this.contextMenuY -= rect.height;
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('driveData', () => ({
+        showNewFolderModal: false,
+        folderToRename: null,
+        folderName: '',
+        showMoveModal: false,
+        moveType: 'document',
+        moveId: null,
+        moveTargetUrl: '',
+        showDeleteModal: false,
+        deleteFormAction: '',
+        deleteTitle: '',
+        deleteType: '',
+        showShareModal: false,
+        shareModalDocId: '',
+        shareModalDocTitle: '',
+        showPreviewModal: false,
+        previewUrl: '',
+        previewName: '',
+        contextMenuOpen: false,
+        contextMenuX: 0,
+        contextMenuY: 0,
+        contextMenuType: '', // 'bg', 'folder', 'file'
+        contextMenuFolder: null, // {id, name}
+        contextMenuFile: null, // {id, name, type}
+        isDragging: false,
+        isUploading: false,
+        uploadProgress: 0,
+        draggedType: null,
+        draggedId: null,
+        dragHoverFolder: null,
+
+        showContextMenu(e, type, item = null) {
+            this.contextMenuType = type;
+            if (type === 'folder') this.contextMenuFolder = item;
+            if (type === 'file') this.contextMenuFile = item;
+            
+            this.contextMenuX = e.clientX;
+            this.contextMenuY = e.clientY;
+            
+            this.$nextTick(() => {
+                const menu = this.$refs.ctxMenu;
+                if(menu) {
+                    const rect = menu.getBoundingClientRect();
+                    if(this.contextMenuX + rect.width > window.innerWidth) this.contextMenuX -= rect.width;
+                    if(this.contextMenuY + rect.height > window.innerHeight) this.contextMenuY -= rect.height;
+                }
+            });
+            
+            this.contextMenuOpen = true;
+        },
+        openShareModal(id, title) {
+            this.shareModalDocId = id;
+            this.shareModalDocTitle = title;
+            this.showShareModal = true;
+        },
+        openDeleteModal(type, title, actionTarget) {
+            this.deleteType = type;
+            this.deleteTitle = title;
+            this.deleteFormAction = actionTarget;
+            this.showDeleteModal = true;
+        },
+        openRenameModal(folderId, name) {
+            this.folderToRename = folderId;
+            this.folderName = name;
+            this.showNewFolderModal = false;
+        },
+        openMoveModal(type, id) {
+            this.moveType = type;
+            this.moveId = id;
+            this.moveTargetUrl = type === 'folder' 
+                ? '{{ url('folders') }}/' + id
+                : '{{ url('documents') }}/' + id;
+            this.showMoveModal = true;
+        },
+        openPreviewModal(url, name) {
+            this.previewUrl = url;
+            this.previewName = name;
+            this.showPreviewModal = true;
+        },
+        checkDragOver(e) {
+            if (e.dataTransfer.types && e.dataTransfer.types.includes('Files') && !this.draggedType) {
+                this.isDragging = true;
             }
-        });
-        
-        this.contextMenuOpen = true;
-    },
-    openShareModal(id, title) {
-        this.shareModalDocId = id;
-        this.shareModalDocTitle = title;
-        this.showShareModal = true;
-    },
-    openDeleteModal(type, title, actionTarget) {
-        this.deleteType = type;
-        this.deleteTitle = title;
-        this.deleteFormAction = actionTarget;
-        this.showDeleteModal = true;
-    },
-    openRenameModal(folderId, name) {
-        this.folderToRename = folderId;
-        this.folderName = name;
-        this.showNewFolderModal = false;
-    },
-    openMoveModal(type, id) {
-        this.moveType = type;
-        this.moveId = id;
-        this.moveTargetUrl = type === 'folder' 
-            ? '{{ url('drive/folder') }}/' + id + '/move'
-            : '{{ url('drive/document') }}/' + id + '/move';
-        this.showMoveModal = true;
-    }
-}">
+        },
+        startDrag(type, id, e) {
+            this.draggedType = type;
+            this.draggedId = id;
+            e.dataTransfer.effectAllowed = 'move';
+        },
+        handleInternalDrop(targetFolderId, e) {
+            if (!this.draggedType) return;
+            e.stopPropagation();
+            
+            if (this.draggedType === 'folder' && this.draggedId == targetFolderId) {
+                this.dragHoverFolder = null;
+                this.draggedType = null;
+                return;
+            }
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = this.draggedType === 'folder' 
+                ? '{{ url('folders') }}/' + this.draggedId
+                : '{{ url('documents') }}/' + this.draggedId;
+            
+            form.innerHTML = `
+                <input type='hidden' name='_token' value='{{ csrf_token() }}'>
+                <input type='hidden' name='_method' value='PUT'>
+                <input type='hidden' name='${this.draggedType === 'folder' ? 'parent_id' : 'folder_id'}' value='${targetFolderId || ''}'>
+            `;
+            
+            document.body.appendChild(form);
+            form.submit();
+            
+            this.dragHoverFolder = null;
+            this.draggedType = null;
+        },
+        handleDrop(e) {
+            if (this.draggedType) return;
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                this.uploadFiles(files);
+            }
+        },
+        async uploadFiles(files) {
+            this.isUploading = true;
+            this.uploadProgress = 0;
+            
+            let totalSize = Array.from(files).reduce((acc, f) => acc + f.size, 0);
+            let loadedSizes = new Array(files.length).fill(0);
+            let hasError = false;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                try {
+                    const startRes = await fetch('{{ route('drive.upload') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            filename: file.name,
+                            folder_id: '{{ $currentFolder ? $currentFolder->id : '' }}'
+                        })
+                    });
+                    
+                    if (!startRes.ok) throw new Error('Failed');
+                    const uploadData = await startRes.json();
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('PUT', uploadData.upload_url, true);
+                    
+                    xhr.upload.onprogress = (e) => {
+                        if (e.lengthComputable) {
+                            loadedSizes[i] = e.loaded;
+                            let currentTotalLoaded = loadedSizes.reduce((a, b) => a + b, 0);
+                            this.uploadProgress = Math.round((currentTotalLoaded / totalSize) * 100);
+                        }
+                    };
+
+                    const uploadPromise = new Promise((res, rej) => {
+                        xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? res() : rej();
+                        xhr.onerror = () => rej();
+                    });
+
+                    xhr.send(file);
+                    await uploadPromise;
+
+                    // 3. Complete upload
+                    const completeRes = await fetch('{{ route('drive.complete') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            storage_path: uploadData.storage_path,
+                            display_name: file.name,
+                            storage_provider_id: uploadData.storage_provider_id,
+                            folder_id: '{{ $currentFolder ? $currentFolder->id : '' }}',
+                            mime_type: file.type || 'application/octet-stream',
+                            size: file.size,
+                            disk: uploadData.disk
+                        })
+                    });
+
+                    if (!completeRes.ok) {
+                        const errorData = await completeRes.json();
+                        throw new Error(errorData.error || 'Failed to complete upload metadata');
+                    }
+                    
+                } catch (err) {
+                    console.error(err);
+                    alert(`Upload failed for ${file.name}`);
+                    hasError = true;
+                    break;
+                }
+            }
+
+            this.isUploading = false;
+            if (!hasError) window.location.reload();
+        }
+    }));
+});
+</script>
+
+<div class="flex flex-col md:flex-row h-full w-full gap-6 max-w-7xl mx-auto" x-data="driveData">
     <!-- Top Action Bar for mobile / Breadcrumbs -->
     <div class="w-full flex-1 flex flex-col min-w-0 relative min-h-screen"
          @click="contextMenuOpen = false"
          @contextmenu.prevent="if($event.target.closest('.group') === null) showContextMenu($event, 'bg')"
-         x-data="{
-             isDragging: false,
-             isUploading: false,
-             uploadProgress: 0,
-             draggedType: null,
-             draggedId: null,
-             dragHoverFolder: null,
-             checkDragOver(e) {
-                 if (e.dataTransfer.types && e.dataTransfer.types.includes('Files') && !this.draggedType) {
-                     this.isDragging = true;
-                 }
-             },
-             startDrag(type, id, e) {
-                 this.draggedType = type;
-                 this.draggedId = id;
-                 e.dataTransfer.effectAllowed = 'move';
-             },
-             handleInternalDrop(targetFolderId, e) {
-                 if (!this.draggedType) return;
-                 e.stopPropagation();
-                 
-                 if (this.draggedType === 'folder' && this.draggedId == targetFolderId) {
-                     this.dragHoverFolder = null;
-                     this.draggedType = null;
-                     return;
-                 }
-
-                 const form = document.createElement('form');
-                 form.method = 'POST';
-                 form.action = this.draggedType === 'folder' 
-                     ? '{{ url('drive/folder') }}/' + this.draggedId + '/move'
-                     : '{{ url('drive/document') }}/' + this.draggedId + '/move';
-                 
-                 form.innerHTML = `
-                     <input type='hidden' name='_token' value='{{ csrf_token() }}'>
-                     <input type='hidden' name='_method' value='PUT'>
-                     <input type='hidden' name='folder_id' value='${targetFolderId || ''}'>
-                 `;
-                 
-                 document.body.appendChild(form);
-                 form.submit();
-                 
-                 this.dragHoverFolder = null;
-                 this.draggedType = null;
-             },
-             handleDrop(e) {
-                 if (this.draggedType) return;
-                 const files = e.dataTransfer.files;
-                 if (files.length > 0) {
-                     this.uploadFiles(files);
-                 }
-             },
-             uploadFiles(files) {
-                 this.isUploading = true;
-                 this.uploadProgress = 0;
-                 
-                 let totalSize = Array.from(files).reduce((acc, f) => acc + f.size, 0);
-                 let loadedSizes = new Array(files.length).fill(0);
-                 let uploadedCount = 0;
-                 let hasError = false;
-
-                 Array.from(files).forEach((file, index) => {
-                     let formData = new FormData();
-                     formData.append('file', file);
-                     formData.append('_token', '{{ csrf_token() }}');
-                     @if($currentFolder)
-                     formData.append('folder_id', '{{ $currentFolder->id }}');
-                     @endif
-
-                     let xhr = new XMLHttpRequest();
-                     xhr.open('POST', '{{ route('drive.upload') }}', true);
-                     
-                     xhr.upload.onprogress = (e) => {
-                         if (e.lengthComputable) {
-                             loadedSizes[index] = e.loaded;
-                             let currentTotalLoaded = loadedSizes.reduce((a, b) => a + b, 0);
-                             let pct = Math.round((currentTotalLoaded / totalSize) * 100);
-                             this.uploadProgress = pct > 100 ? 100 : pct;
-                         }
-                     };
-                     
-                     xhr.onload = () => {
-                         uploadedCount++;
-                         if (xhr.status !== 200 && !hasError) {
-                             hasError = true;
-                             alert('An upload failed: ' + (JSON.parse(xhr.responseText).message || xhr.statusText));
-                         }
-                         if (uploadedCount === files.length) {
-                             this.isUploading = false;
-                             if (!hasError) window.location.reload();
-                         }
-                     };
-                     
-                     xhr.onerror = () => {
-                         uploadedCount++;
-                         if (!hasError) {
-                             hasError = true;
-                             alert('Network error during upload.');
-                         }
-                         if (uploadedCount === files.length) {
-                             this.isUploading = false;
-                         }
-                     };
-                     
-                     xhr.send(formData);
-                 });
-             }
-         }"
          @dragover.prevent="checkDragOver($event)"
          @dragleave.prevent="isDragging = false"
          @drop.prevent="isDragging = false; handleDrop($event)">
@@ -273,34 +304,47 @@
         <div>
             <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Files</h3>
             
-            @if($documents->count() > 0)
+            @if($files->count() > 0)
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    @foreach($documents as $doc)
-                        <!-- Mimic Document Grid from traditional index, but slightly modernized for Drive -->
+                    @foreach($files as $file)
+                        <!-- Mimic File Grid from traditional index, but slightly modernized for Drive -->
                         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group hover:border-blue-200 transition-all flex flex-col cursor-pointer"
-                             draggable="true" @dragstart="startDrag('document', {{ $doc->id }}, $event)"
-                             @contextmenu.prevent.stop="showContextMenu($event, 'file', { id: {{ $doc->id }}, name: '{{ addslashes($doc->title) }}' })">
+                             draggable="true" @dragstart="startDrag('file', '{{ $file->id }}', $event)"
+                             @click="openPreviewModal('{{ route('documents.preview', $file->id) }}', '{{ addslashes($file->display_name) }}')"
+                             @contextmenu.prevent.stop="showContextMenu($event, 'file', { id: '{{ $file->id }}', name: '{{ addslashes($file->display_name) }}' })">
                             <div class="aspect-[4/3] bg-gray-50 flex items-center justify-center relative group-hover:bg-blue-50 transition-colors">
-                                @if(str_contains($doc->file_type, 'image'))
-                                    <img src="{{ route('documents.preview', $doc->id) }}" class="w-full h-full object-cover">
+                                @if($file->thumbnail_path)
+                                    <img src="{{ route('documents.thumbnail', $file->id) }}" class="w-full h-full object-cover">
+                                @elseif(str_contains($file->mime_type, 'image'))
+                                    <img src="{{ route('documents.preview', $file->id) }}" class="w-full h-full object-cover">
                                 @else
-                                    <i data-lucide="file-text" class="w-12 h-12 text-blue-200 group-hover:text-blue-300 transition-colors"></i>
+                                    <div class="flex flex-col items-center">
+                                        @php
+                                            $icon = 'file-text';
+                                            if (str_contains($file->mime_type, 'pdf')) $icon = 'file-type-2';
+                                            if (str_contains($file->mime_type, 'zip') || str_contains($file->mime_type, 'rar')) $icon = 'archive';
+                                            if (str_contains($file->mime_type, 'video')) $icon = 'video';
+                                            if (str_contains($file->mime_type, 'audio')) $icon = 'music';
+                                        @endphp
+                                        <i data-lucide="{{ $icon }}" class="w-12 h-12 text-blue-200 group-hover:text-blue-300 transition-colors"></i>
+                                        <span class="text-[10px] uppercase font-bold text-gray-400 mt-2">{{ $file->extension }}</span>
+                                    </div>
                                 @endif
                                 
                                 <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                    <a href="{{ route('documents.preview', $doc->id) }}" target="_blank" class="p-2 bg-white rounded-lg hover:text-blue-600 transition-colors" title="View">
+                                    <button @click.stop.prevent="openPreviewModal('{{ route('documents.preview', $file->id) }}', '{{ addslashes($file->display_name) }}')" class="p-2 bg-white rounded-lg hover:text-blue-600 transition-colors" title="View">
                                         <i data-lucide="eye" class="w-4 h-4"></i>
-                                    </a>
-                                    <a href="{{ route('documents.download', $doc->id) }}" class="p-2 bg-white rounded-lg hover:text-green-600 transition-colors" title="Download">
+                                    </button>
+                                    <a href="{{ route('documents.download', $file->id) }}" @click.stop class="p-2 bg-white rounded-lg hover:text-green-600 transition-colors" title="Download">
                                         <i data-lucide="download" class="w-4 h-4"></i>
                                     </a>
-                                    <button @click.prevent="openMoveModal('document', {{ $doc->id }})" class="p-2 bg-white rounded-lg hover:text-purple-600 transition-colors" title="Move">
+                                    <button @click.stop.prevent="openMoveModal('file', '{{ $file->id }}')" class="p-2 bg-white rounded-lg hover:text-purple-600 transition-colors" title="Move">
                                         <i data-lucide="folder-output" class="w-4 h-4"></i>
                                     </button>
-                                    <button @click.prevent="openShareModal({{ $doc->id }}, '{{ addslashes($doc->title) }}')" class="p-2 bg-white rounded-lg hover:text-blue-500 transition-colors" title="Share">
+                                    <button @click.stop.prevent="openShareModal('{{ $file->id }}', '{{ addslashes($file->display_name) }}')" class="p-2 bg-white rounded-lg hover:text-blue-500 transition-colors" title="Share">
                                         <i data-lucide="share-2" class="w-4 h-4"></i>
                                     </button>
-                                    <button @click.prevent="openDeleteModal('document', '{{ addslashes($doc->title) }}', '{{ route('documents.destroy', $doc->id) }}')" class="p-2 bg-white rounded-lg hover:text-red-600 transition-colors" title="Delete">
+                                    <button @click.stop.prevent="openDeleteModal('file', '{{ addslashes($file->display_name) }}', '{{ route('documents.destroy', $file->id) }}')" class="p-2 bg-white rounded-lg hover:text-red-600 transition-colors" title="Delete">
                                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                                     </button>
                                 </div>
@@ -308,7 +352,7 @@
                             <div class="p-3 border-t border-gray-50 flex items-center">
                                 <i data-lucide="file-text" class="w-4 h-4 text-blue-500 mr-2 shrink-0"></i>
                                 <div class="flex-1 min-w-0">
-                                    <h4 class="text-xs font-bold text-gray-800 truncate" title="{{ $doc->title }}">{{ $doc->title }}</h4>
+                                    <h4 class="text-xs font-bold text-gray-800 truncate" title="{{ $file->display_name }}">{{ $file->display_name }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -331,7 +375,7 @@
             <div class="px-5 py-4 border-b border-gray-100">
                 <h3 class="text-base font-bold text-gray-800">New Folder</h3>
             </div>
-            <form action="{{ route('folders.store') }}" method="POST">
+            <form action="{{ route('web.folders.store') }}" method="POST">
                 @csrf
                 <input type="hidden" name="parent_id" value="{{ $currentFolder->id ?? '' }}">
                 <div class="p-5">
@@ -374,7 +418,7 @@
                 @csrf @method('PUT')
                 <div class="p-5">
                     <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Select Destination</label>
-                    <select name="folder_id" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    <select :name="moveType === 'folder' ? 'parent_id' : 'folder_id'" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                         <option value="">My Drive (Root)</option>
                         @foreach($allFolders as $availableFolder)
                             <option value="{{ $availableFolder->id }}">{{ $availableFolder->name }}</option>
@@ -453,21 +497,21 @@
          <!-- File specific options -->
          <template x-if="contextMenuType === 'file'">
             <div>
-                <a :href="`{{ url('documents') }}/${contextMenuFile.id}/preview`" target="_blank" @click="contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
+                <a :href="`{{ url('api/files') }}/${contextMenuFile.id}/preview`" target="_blank" @click="contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
                     <i data-lucide="eye" class="w-4 h-4 mr-3 text-blue-400"></i> Preview
                 </a>
-                <a :href="`{{ url('documents') }}/${contextMenuFile.id}/download`" @click="contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
+                <a :href="`{{ url('api/files') }}/${contextMenuFile.id}/download`" @click="contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
                     <i data-lucide="download-cloud" class="w-4 h-4 mr-3 text-green-400"></i> Download
                 </a>
                 <div class="h-px bg-gray-100 my-1 w-full"></div>
                 <button @click="openShareModal(contextMenuFile.id, contextMenuFile.name); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
                     <i data-lucide="share-2" class="w-4 h-4 mr-3 text-indigo-400"></i> Share
                 </button>
-                <button @click="openMoveModal('document', contextMenuFile.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
+                <button @click="openMoveModal('file', contextMenuFile.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
                     <i data-lucide="folder-output" class="w-4 h-4 mr-3 text-gray-400"></i> Move To
                 </button>
                 <div class="h-px bg-gray-100 my-1 w-full"></div>
-                <button @click="openDeleteModal('document', contextMenuFile.name, '{{ url('documents') }}/' + contextMenuFile.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 flex items-center font-medium">
+                <button @click="openDeleteModal('file', contextMenuFile.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 flex items-center font-medium">
                     <i data-lucide="trash-2" class="w-4 h-4 mr-3 text-red-500"></i> Delete File
                 </button>
             </div>
@@ -476,5 +520,39 @@
 
     @include('share.modal')
 
+    <!-- Preview Modal -->
+    <div x-show="showPreviewModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md" x-cloak>
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden" @click.away="showPreviewModal = false">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-blue-50 rounded-xl">
+                        <i data-lucide="file-text" class="w-5 h-5 text-blue-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-800" x-text="previewName"></h3>
+                        <p class="text-[10px] text-gray-400 font-medium">File Preview</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a :href="previewUrl" download class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Download">
+                        <i data-lucide="download" class="w-5 h-5"></i>
+                    </a>
+                    <button @click="showPreviewModal = false" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 bg-gray-100 relative">
+                <template x-if="showPreviewModal">
+                    <iframe :src="previewUrl" class="w-full h-full border-none" @load="$el.classList.remove('opacity-0')" class="transition-opacity duration-300"></iframe>
+                </template>
+                <div class="absolute inset-0 flex items-center justify-center -z-10">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </div>
 </div>
 @endsection

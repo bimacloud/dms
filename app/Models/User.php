@@ -37,24 +37,24 @@ class User extends Authenticatable
         return $this->belongsTo(Position::class);
     }
 
+    public function files()
+    {
+        return $this->hasMany(File::class);
+    }
+
     public function folders()
     {
         return $this->hasMany(Folder::class);
     }
 
-    public function sharedDocuments()
+    public function shares()
     {
-        return $this->hasMany(FileUserShare::class, 'shared_by');
+        return $this->hasMany(Share::class, 'owner_id');
     }
 
-    public function receivedDocuments()
+    public function receivedShares()
     {
-        return $this->hasMany(FileUserShare::class, 'shared_to');
-    }
-
-    public function fileShares()
-    {
-        return $this->hasMany(FileShare::class, 'created_by');
+        return $this->hasMany(Share::class, 'shared_with_id');
     }
 
     public function isRoot(): bool
@@ -69,15 +69,7 @@ class User extends Authenticatable
 
     public function getRawDiskSpaceBytesAttribute(): int
     {
-        $documents = Document::where('uploaded_by', $this->id)->get();
-        $totalBytes = 0;
-        foreach ($documents as $doc) {
-            $path = $doc->file_path;
-            if (\Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
-                $totalBytes += \Illuminate\Support\Facades\Storage::disk('public')->size($path);
-            }
-        }
-        return (int) $totalBytes;
+        return (int) File::where('user_id', $this->id)->sum('size');
     }
 
     public function getTotalDiskSpaceAttribute()

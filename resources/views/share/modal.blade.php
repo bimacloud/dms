@@ -107,16 +107,8 @@
                     <input type="hidden" name="document_id" :value="shareModalDocId">
                     
                     <div>
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Select Colleague</label>
-                        <select name="user_id" class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required>
-                            <option value="">Choose a user...</option>
-                            <option value="all" class="font-bold text-blue-700 bg-blue-50">👥 Semua User (All Members & Admin)</option>
-                            @if(isset($users))
-                                @foreach($users as $user)
-                                    <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->email }})</option>
-                                @endforeach
-                            @endif
-                        </select>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Colleague Email</label>
+                        <input type="text" name="email" class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="Enter user's email or 'all'" required>
                     </div>
 
                     <div>

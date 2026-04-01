@@ -10,7 +10,7 @@ class CategoryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Category::query()->withCount('documents');
+        $query = Category::query()->withCount('files');
         
         if ($request->has('search')) {
             $search = $request->get('search');
@@ -42,7 +42,7 @@ class CategoryController extends Controller
             abort(403, 'Hanya role Root yang diperbolehkan menghapus kategori.');
         }
 
-        if ($category->documents()->exists()) {
+        if ($category->files()->exists()) {
             return back()->with('error', 'Cannot delete category with associated documents.');
         }
         $category->delete();

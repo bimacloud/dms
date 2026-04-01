@@ -10,11 +10,32 @@ class FolderController extends Controller
 {
     use AuthorizesRequests;
 
+    public function index(Request $request)
+    {
+        $folders = Folder::where('user_id', auth()->id())
+            ->whereNull('parent_id')
+            ->with(['children', 'files'])
+            ->get();
+
+        return response()->json($folders);
+    }
+
+    public function show(Folder $folder)
+    {
+        $this->authorize('view', $folder);
+
+        $folder->load(['children', 'files']);
+
+        return response()->json($folder);
+    }
+
     public function store(Request $request)
     {
+        \Log::info('FolderController@store reached. Data: ', $request->all());
+        
         $request->validate([
             'name' => 'required|string|max:255',
-            'parent_id' => 'nullable|exists:folders,id',
+            'parent_id' => 'nullable|uuid|exists:folders,id',
         ]);
 
         if ($request->parent_id) {
@@ -22,13 +43,21 @@ class FolderController extends Controller
             $this->authorize('view', $parent);
         }
 
-        Folder::create([
+        $folder = Folder::create([
             'name' => $request->name,
             'user_id' => auth()->id(),
             'parent_id' => $request->parent_id,
         ]);
 
-        return redirect()->back()->with('success', 'Folder created successfully.');
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Folder created successfully.',
+                'folder' => $folder
+            ], 201);
+        }
+
+        $redirectUrl = $folder->parent_id ? route('drive.index', $folder->parent_id) : route('drive.index');
+        return redirect($redirectUrl)->with('success', 'Folder created.');
     }
 
     public function update(Request $request, Folder $folder)
@@ -36,21 +65,47 @@ class FolderController extends Controller
         $this->authorize('update', $folder);
 
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'sometimes|string|max:255',
+            'parent_id' => 'sometimes|nullable|uuid|exists:folders,id',
         ]);
 
-        $folder->update(['name' => $request->name]);
+        if ($request->has('name')) {
+            $folder->name = $request->name;
+        }
 
-        return redirect()->back()->with('success', 'Folder renamed successfully.');
+        if ($request->has('parent_id')) {
+            if ($request->parent_id) {
+                $parent = Folder::findOrFail($request->parent_id);
+                $this->authorize('view', $parent);
+            }
+            $folder->parent_id = $request->parent_id;
+        }
+
+        $folder->save();
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Folder updated successfully.',
+                'folder' => $folder
+            ]);
+        }
+
+        $redirectUrl = $folder->parent_id ? route('drive.index', $folder->parent_id) : route('drive.index');
+        return redirect($redirectUrl)->with('success', 'Folder updated.');
     }
 
     public function destroy(Folder $folder)
     {
         $this->authorize('delete', $folder);
 
-        // Database foreign keys have cascade on delete, so this deletes subfolders and unlinks documents recursively
+        $parentId = $folder->parent_id;
         $folder->delete();
 
-        return redirect()->back()->with('success', 'Folder deleted successfully.');
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Folder deleted successfully.']);
+        }
+
+        $redirectUrl = $parentId ? route('drive.index', $parentId) : route('drive.index');
+        return redirect($redirectUrl)->with('success', 'Folder deleted.');
     }
 }

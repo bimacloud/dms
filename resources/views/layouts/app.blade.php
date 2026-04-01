@@ -84,6 +84,24 @@
         <nav class="flex-1 px-3 py-6 space-y-2 overflow-y-auto custom-scrollbar">
             @include('partials.sidebar-items', ['items' => $menus])
         </nav>
+
+        <!-- User Profile Area -->
+        <div class="p-4 border-t border-gray-800 bg-gray-900/50">
+            <div class="flex items-center" :class="sidebarOpen ? 'p-3 bg-gray-800/50 rounded-xl' : 'justify-center p-2'" title="{{ auth()->user()->name }} ({{ auth()->user()->role->name }})">
+                <div class="h-10 w-10 shrink-0 rounded-full flex items-center justify-center font-bold border {{ auth()->user()->role->name === 'root' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30' }}">
+                    {{ substr(auth()->user()->name, 0, 1) }}
+                </div>
+                <div class="ml-3 overflow-hidden transition-all duration-300" x-show="sidebarOpen" x-transition x-cloak>
+                    <p class="text-sm font-bold text-white leading-none truncate">{{ auth()->user()->name }}</p>
+                    <p class="text-[10px] uppercase mt-1 tracking-wider font-bold flex items-center {{ auth()->user()->role->name === 'root' ? 'text-red-400' : (auth()->user()->role->name === 'admin' ? 'text-blue-400' : 'text-gray-400') }}">
+                        @if(auth()->user()->role->name === 'root')
+                            <i data-lucide="shield-alert" class="w-3 h-3 mr-1"></i>
+                        @endif
+                        {{ auth()->user()->role->name }}
+                    </p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Main Content -->
@@ -110,9 +128,14 @@
                         @endforeach
                     </div>
 
-                    <div class="text-right hidden xs:block">
+                    <div class="text-right hidden sm:block">
                         <div class="text-xs font-bold text-gray-900 truncate max-w-[120px]">{{ auth()->user()->name }}</div>
-                        <div class="text-[10px] text-blue-600 font-bold uppercase tracking-tighter">{{ auth()->user()->role->name }}</div>
+                        <div class="text-[10px] font-bold uppercase tracking-tighter flex items-center justify-end {{ auth()->user()->role->name === 'root' ? 'text-red-600' : 'text-blue-600' }}">
+                            @if(auth()->user()->role->name === 'root')
+                                <i data-lucide="shield-alert" class="w-3 h-3 mr-0.5"></i>
+                            @endif
+                            {{ auth()->user()->role->name }}
+                        </div>
                     </div>
                     <form action="{{ route('logout') }}" method="POST">
                         @csrf

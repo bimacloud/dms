@@ -2,129 +2,116 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\FileShare;
-use App\Models\Document;
+use App\Models\File;
+use App\Models\Folder;
+use App\Models\Share;
+use App\Services\StorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class ShareController extends Controller
 {
+    use AuthorizesRequests;
+
+    protected StorageService $storage;
+
+    public function __construct(StorageService $storage)
+    {
+        $this->storage = $storage;
+    }
+
     /**
-     * Store a new public share link.
+     * Store a new share (Public or Private).
      */
     public function store(Request $request)
     {
         $request->validate([
-            'document_id' => 'required|exists:documents,id',
+            'shareable_type' => 'required|string|in:file,folder',
+            'shareable_id' => 'required|uuid',
+            'shared_with_id' => 'nullable|exists:users,id',
+            'permission' => 'nullable|string|in:view,edit',
             'password' => 'nullable|string|min:4',
-            'expired_at' => 'nullable|date|after:now',
+            'expires_at' => 'nullable|date|after:now',
         ]);
 
-        $document = Document::findOrFail($request->document_id);
+        $modelClass = $request->shareable_type === 'file' ? File::class : Folder::class;
+        $shareable = $modelClass::findOrFail($request->shareable_id);
 
-        if (auth()->user()->role->name !== 'root' && $document->uploaded_by !== auth()->id()) {
-            abort(403, 'Unauthorized to share this document.');
-        }
+        $this->authorize('update', $shareable);
 
-        $share = FileShare::create([
-            'document_id' => $document->id,
-            'token' => Str::random(40),
+        $share = Share::create([
+            'shareable_type' => $modelClass,
+            'shareable_id' => $shareable->id,
+            'owner_id' => auth()->id(),
+            'shared_with_id' => $request->shared_with_id,
+            'permission' => $request->permission ?? 'view',
+            'access_token' => $request->shared_with_id ? null : Str::random(40),
             'password' => $request->password ? Hash::make($request->password) : null,
-            'expired_at' => $request->expired_at,
-            'created_by' => auth()->id(),
-            'is_active' => true,
+            'expires_at' => $request->expires_at,
         ]);
 
-        return redirect()->back()->with('success', 'Share link created successfully.')->with('share_link', route('share.show', $share->token));
+        return response()->json([
+            'message' => 'Share created successfully.',
+            'share' => $share,
+            'link' => $share->access_token ? url("/api/shares/{$share->access_token}") : null
+        ], 201);
     }
 
     /**
-     * View a shared document link.
+     * Access a shared item.
      */
-    public function show($token)
+    public function show(Request $request, $tokenOrId)
     {
-        $share = FileShare::with('document')->where('token', $token)->firstOrFail();
+        $share = Share::where('access_token', $tokenOrId)
+            ->orWhere('id', $tokenOrId)
+            ->firstOrFail();
 
-        if (!$share->is_active) {
-            abort(403, 'This link has been revoked.');
+        // Check expiry
+        if ($share->expires_at && $share->expires_at->isPast()) {
+            return response()->json(['message' => 'Share has expired.'], 403);
         }
 
-        if ($share->expired_at && now()->greaterThan($share->expired_at)) {
-            abort(403, 'This link has expired.');
+        // Check private share
+        if ($share->shared_with_id && (auth()->guest() || auth()->id() !== $share->shared_with_id)) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        // Check password protection
+        // Check password
         if ($share->password) {
-            if (!session()->has("share_{$token}_unlocked")) {
-                return view('share.password', compact('share'));
+            if (!$request->has('password') || !Hash::check($request->password, $share->password)) {
+                return response()->json(['message' => 'Password required or incorrect.'], 401);
             }
         }
 
-        return view('share.show', compact('share'));
+        $shareable = $share->shareable;
+
+        if ($share->shareable_type === File::class) {
+            return response()->json([
+                'share' => $share,
+                'file' => $shareable,
+                'download_url' => $this->storage->getDownloadUrl($shareable)
+            ]);
+        }
+
+        return response()->json([
+            'share' => $share,
+            'folder' => $shareable->load(['children', 'files'])
+        ]);
     }
 
     /**
-     * Preview the shared document directly.
+     * Revoke a share.
      */
-    public function preview($token)
+    public function destroy(Share $share)
     {
-        $share = FileShare::with('document')->where('token', $token)->firstOrFail();
-
-        if (!$share->is_active || ($share->expired_at && now()->greaterThan($share->expired_at))) {
-            abort(403, 'Link expired or revoked.');
-        }
-
-        if ($share->password && !session()->has("share_{$token}_unlocked")) {
-            abort(403, 'Password required.');
-        }
-
-        $document = $share->document;
-        $fileStorage = app(\App\Services\FileStorageService::class);
-
-        if (!$fileStorage->exists($document->file_path)) {
-            abort(404, 'File preview not found.');
-        }
-
-        return response()->file(storage_path('app/public/' . $document->file_path));
-    }
-
-    /**
-     * Verify password for a shared document.
-     */
-    public function verifyPassword(Request $request, $token)
-    {
-        $request->validate(['password' => 'required']);
-        $share = FileShare::where('token', $token)->firstOrFail();
-
-        $key = 'share_password_attempts_' . $token . '_' . request()->ip();
-
-        if (RateLimiter::tooManyAttempts($key, 5)) {
-            $seconds = RateLimiter::availableIn($key);
-            return back()->withErrors(['password' => "Too many attempts. Please try again in {$seconds} seconds."]);
-        }
-
-        if (Hash::check($request->password, $share->password)) {
-            RateLimiter::clear($key);
-            session()->put("share_{$token}_unlocked", true);
-            return redirect()->route('share.show', $token);
-        }
-
-        RateLimiter::hit($key);
-        return back()->withErrors(['password' => 'Incorrect password.']);
-    }
-
-    /**
-     * Delete/Revoke a share link.
-     */
-    public function destroy(FileShare $share)
-    {
-        if (auth()->user()->role->name !== 'root' && $share->created_by !== auth()->id()) {
-            abort(403, 'Unauthorized.');
+        if (auth()->id() !== $share->owner_id && !auth()->user()->isAdmin()) {
+            abort(403);
         }
 
         $share->delete();
-        return redirect()->back()->with('success', 'Share link revoked.');
+
+        return response()->json(['message' => 'Share revoked successfully.']);
     }
 }

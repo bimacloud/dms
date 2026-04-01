@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\FileUserShare;
-use App\Models\Document;
+use App\Models\Share;
+use App\Models\File;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class UserShareController extends Controller
 {
+    use AuthorizesRequests;
+
     /**
      * Display a listing of documents shared with the authenticated user.
      */
@@ -16,9 +19,11 @@ class UserShareController extends Controller
     {
         $user = auth()->user();
 
-        // Get FileUserShare records to the current user
-        $shares = FileUserShare::with(['document.category', 'sharedBy'])
-            ->where('shared_to', $user->id)
+        // Get Share records to the current user
+        $shares = Share::with(['shareable.category', 'owner'])
+            ->where('shared_with_id', $user->id)
+            ->where('shareable_type', File::class)
+            ->has('shareable')
             ->latest()
             ->paginate(12);
 
@@ -31,72 +36,60 @@ class UserShareController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'document_id' => 'required|exists:documents,id',
-            'user_id' => 'required',
-            'permission' => 'required|in:view,download',
+            'document_id' => 'required|uuid|exists:files,id',
+            'email' => 'required|string',
+            'permission' => 'required|in:view,download,edit',
         ]);
 
-        if ($request->user_id !== 'all') {
+        if (strtolower($request->email) !== 'all') {
             $request->validate([
-                'user_id' => 'exists:users,id|different:' . auth()->id(),
+                'email' => 'email|exists:users,email',
             ]);
-        }
 
-        $document = Document::findOrFail($request->document_id);
+            $targetUser = User::where('email', $request->email)->first();
 
-        if (auth()->user()->role->name !== 'root' && $document->uploaded_by !== auth()->id()) {
-            abort(403, 'Unauthorized to share this document.');
-        }
-
-        if ($request->user_id === 'all') {
-            $allUsers = User::where('id', '!=', auth()->id())->get();
-            $count = 0;
-            foreach ($allUsers as $u) {
-                $existing = FileUserShare::where('document_id', $document->id)
-                    ->where('shared_to', $u->id)
-                    ->first();
-                    
-                if ($existing) {
-                    $existing->update(['permission' => $request->permission]);
-                } else {
-                    FileUserShare::create([
-                        'document_id' => $document->id,
-                        'shared_by' => auth()->id(),
-                        'shared_to' => $u->id,
-                        'permission' => $request->permission,
-                    ]);
-                    $count++;
-                }
+            if ($targetUser->id === auth()->id()) {
+                return back()->withErrors(['email' => 'You cannot share a document with yourself.']);
             }
-            return redirect()->back()->with('success', "Document shared successfully with all member accounts.");
         }
 
-        // Check if already shared
-        $existing = FileUserShare::where('document_id', $document->id)
-            ->where('shared_to', $request->user_id)
-            ->first();
+        $file = File::findOrFail($request->document_id);
 
-        if ($existing) {
-            $existing->update(['permission' => $request->permission]);
-            return redirect()->back()->with('success', 'Share permission updated.');
+        $this->authorize('update', $file);
+
+        if (strtolower($request->email) === 'all') {
+            $allUsers = User::where('id', '!=', auth()->id())->get();
+            foreach ($allUsers as $u) {
+                Share::updateOrCreate([
+                    'shareable_type' => File::class,
+                    'shareable_id' => $file->id,
+                    'shared_with_id' => $u->id,
+                ], [
+                    'owner_id' => auth()->id(),
+                    'permission' => $request->permission,
+                ]);
+            }
+            return redirect()->back()->with('success', "File shared successfully with all accounts.");
         }
 
-        FileUserShare::create([
-            'document_id' => $document->id,
-            'shared_by' => auth()->id(),
-            'shared_to' => $request->user_id,
+        Share::updateOrCreate([
+            'shareable_type' => File::class,
+            'shareable_id' => $file->id,
+            'shared_with_id' => $targetUser->id,
+        ], [
+            'owner_id' => auth()->id(),
             'permission' => $request->permission,
         ]);
 
-        return redirect()->back()->with('success', 'Document shared successfully.');
+        return redirect()->back()->with('success', 'File shared successfully.');
     }
 
     /**
      * Revoke an internal share.
      */
-    public function destroy(FileUserShare $share)
+    public function destroy(Share $share)
     {
-        if (auth()->user()->role->name !== 'root' && $share->shared_by !== auth()->id()) {
+        if (auth()->id() !== $share->owner_id && !auth()->user()->isAdmin()) {
             abort(403, 'Unauthorized.');
         }
 

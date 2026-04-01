@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Folder;
-use App\Models\Document;
+use App\Models\File;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
@@ -40,13 +40,14 @@ class DriveController extends Controller
             ->orderBy('name')
             ->get();
 
-        $documents = Document::where('uploaded_by', $targetUserId)
+        $files = File::where('user_id', $targetUserId)
             ->where('folder_id', $folderId)
+            ->whereNull('category_id')
             ->latest()
             ->get();
             
         $allFolders = Folder::where('user_id', $targetUserId)->orderBy('name')->get();
 
-        return view('drive.index', compact('currentFolder', 'folders', 'documents', 'breadcrumbs', 'allFolders', 'targetUserId'));
+        return view('drive.index', compact('currentFolder', 'folders', 'files', 'breadcrumbs', 'allFolders', 'targetUserId'));
     }
 }

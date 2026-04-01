@@ -10,6 +10,7 @@ use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\UserShareController;
 use App\Http\Controllers\DriveController;
 use App\Http\Controllers\FolderController;
+use App\Http\Controllers\FileController;
 use App\Http\Controllers\FileMoveController;
 
 // Auth Routes
@@ -28,15 +29,16 @@ Route::middleware(['auth', 'check.menu'])->group(function () {
     // Documents
     Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
     Route::post('/documents', [DocumentController::class, 'store'])->name('documents.store');
+    Route::get('/documents/{file}/preview', [DocumentController::class, 'preview'])->name('documents.preview');
+    Route::get('/documents/{file}/download', [DocumentController::class, 'download'])->name('documents.download');
+    Route::delete('/documents/{file}', [DocumentController::class, 'destroy'])->name('documents.destroy');
 
     // Drive UI
     Route::get('/drive/{folder?}', [DriveController::class, 'index'])->name('drive.index');
-
     Route::post('/drive/upload', [\App\Http\Controllers\UploadController::class, 'store'])->name('drive.upload');
-    Route::put('/drive/document/{document}/move', [FileMoveController::class, 'updateDocument'])->name('drive.move.document');
-    Route::put('/drive/folder/{folder}/move', [FileMoveController::class, 'updateFolder'])->name('drive.move.folder');
+    Route::post('/drive/complete', [\App\Http\Controllers\UploadController::class, 'complete'])->name('drive.complete');
 
-    // Internal Sharing
+    // Internal Sharing (Shared with me)
     Route::get('/shared-documents', [UserShareController::class, 'index'])->name('shared.index');
     Route::post('/shared-documents', [UserShareController::class, 'store'])->name('shared.store');
     Route::delete('/shared-documents/{share}', [UserShareController::class, 'destroy'])->name('shared.destroy');
@@ -64,6 +66,12 @@ Route::middleware(['auth', 'check.menu'])->group(function () {
         // System Config
         Route::get('/settings/company', [\App\Http\Controllers\SettingController::class, 'index'])->name('settings.company');
         Route::post('/settings/company', [\App\Http\Controllers\SettingController::class, 'store'])->name('settings.company.store');
+
+        // Storage Providers
+        Route::get('/settings/storage', [\App\Http\Controllers\StorageProviderController::class, 'index'])->name('settings.storage');
+        Route::post('/settings/storage', [\App\Http\Controllers\StorageProviderController::class, 'store'])->name('settings.storage.store');
+        Route::put('/settings/storage/{storageProvider}', [\App\Http\Controllers\StorageProviderController::class, 'update'])->name('settings.storage.update');
+        Route::delete('/settings/storage/{storageProvider}', [\App\Http\Controllers\StorageProviderController::class, 'destroy'])->name('settings.storage.destroy');
     });
     Route::get('/reports', function() { return view('layouts.app')->with('content', 'Reports Page'); })->name('reports.index');
     Route::get('/network', function() { return view('layouts.app')->with('content', 'Network Status Page'); })->name('network.index');
@@ -73,14 +81,16 @@ Route::middleware(['auth', 'check.menu'])->group(function () {
 
 // Preview & Download (protected by auth but maybe bypass menu check for direct links)
 Route::middleware(['auth'])->group(function () {
-    Route::get('/documents/{document}/preview', [DocumentController::class, 'preview'])->name('documents.preview');
-    Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+    Route::get('/documents/{file}/preview', [DocumentController::class, 'preview'])->name('documents.preview');
+    Route::get('/documents/{file}/thumbnail', [DocumentController::class, 'thumbnail'])->name('documents.thumbnail');
+    Route::get('/documents/{file}/download', [DocumentController::class, 'download'])->name('documents.download');
+    Route::put('/documents/{file}', [DocumentController::class, 'update'])->name('web.files.update');
     Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
 
     // Folder Actions bypass menu check
-    Route::post('/folders', [FolderController::class, 'store'])->name('folders.store');
-    Route::put('/folders/{folder}', [FolderController::class, 'update'])->name('folders.update');
-    Route::delete('/folders/{folder}', [FolderController::class, 'destroy'])->name('folders.destroy');
+    Route::post('/folders', [FolderController::class, 'store'])->name('web.folders.store');
+    Route::put('/folders/{folder}', [FolderController::class, 'update'])->name('web.folders.update');
+    Route::delete('/folders/{folder}', [FolderController::class, 'destroy'])->name('web.folders.destroy');
 
     // Public Sharing Links Generation
     Route::post('/share-links', [ShareController::class, 'store'])->name('share_links.store');

@@ -3,23 +3,6 @@
 @section('header', 'Dashboard')
 
 @section('content')
-@php
-    $user = auth()->user();
-    $isAdmin = $user->isAdmin();
-    
-    $docCount = $isAdmin 
-        ? \App\Models\Document::count() 
-        : \App\Models\Document::where('uploaded_by', $user->id)->count();
-
-    $catCount = \App\Models\Category::count();
-
-    $sharedCount = \App\Models\FileUserShare::where('shared_to', $user->id)->count();
-
-    $recentDocs = $isAdmin 
-        ? \App\Models\Document::with('category')->latest()->limit(5)->get()
-        : \App\Models\Document::with('category')->where('uploaded_by', $user->id)->latest()->limit(5)->get();
-@endphp
-
 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
     <div class="bg-white p-6 rounded-lg shadow-sm border-l-4 border-blue-500">
         <div class="flex items-center">
@@ -27,8 +10,8 @@
                 <i data-lucide="file-text" class="w-6 h-6"></i>
             </div>
             <div>
-                <p class="text-sm text-gray-500 font-medium">{{ $isAdmin ? 'Total Documents' : 'My Documents' }}</p>
-                <h3 class="text-2xl font-bold">{{ $docCount }}</h3>
+                <p class="text-sm text-gray-500 font-medium">{{ $isAdmin ? 'Total Files' : 'My Files' }}</p>
+                <h3 class="text-2xl font-bold">{{ $fileCount }}</h3>
             </div>
         </div>
     </div>
@@ -50,7 +33,7 @@
             </div>
             <div>
                 <p class="text-sm text-gray-500 font-medium">Current Role</p>
-                <h3 class="text-xl font-bold capitalize">{{ $user->role->name }}</h3>
+                <h3 class="text-xl font-bold capitalize">{{ auth()->user()->role->name }}</h3>
             </div>
         </div>
     </div>
@@ -68,28 +51,26 @@
 </div>
 
 <div class="bg-white rounded-lg shadow-sm p-6">
-    <h3 class="text-lg font-bold mb-4">Recent Documents</h3>
+    <h3 class="text-lg font-bold mb-4">Recent Files</h3>
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
             <thead>
                 <tr>
-                    <th class="text-left text-xs font-bold text-gray-500 uppercase pb-3">Title</th>
-                    <th class="text-left text-xs font-bold text-gray-500 uppercase pb-3">Category</th>
+                    <th class="text-left text-xs font-bold text-gray-500 uppercase pb-3">Name</th>
+                    <th class="text-left text-xs font-bold text-gray-500 uppercase pb-3">Type</th>
+                    <th class="text-left text-xs font-bold text-gray-500 uppercase pb-3">Size</th>
                     <th class="text-left text-xs font-bold text-gray-500 uppercase pb-3">Uploaded</th>
-                    <th class="text-right text-xs font-bold text-gray-500 uppercase pb-3">Action</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
-                @foreach ($recentDocs as $doc)
+                @foreach ($recentFiles as $file)
                     <tr>
-                        <td class="py-3 text-sm font-medium">{{ $doc->title }}</td>
+                        <td class="py-3 text-sm font-medium">{{ $file->display_name }}</td>
                         <td class="py-3 text-sm text-gray-500">
-                            <span class="px-2 py-1 bg-gray-100 rounded text-xs">{{ $doc->category->name }}</span>
+                            <span class="px-2 py-1 bg-gray-100 rounded text-xs">{{ strtoupper($file->extension) }}</span>
                         </td>
-                        <td class="py-3 text-sm text-gray-400">{{ $doc->created_at->diffForHumans() }}</td>
-                        <td class="py-3 text-right">
-                            <a href="{{ route('documents.preview', $doc->id) }}" class="text-blue-500 hover:underline">View</a>
-                        </td>
+                        <td class="py-3 text-sm text-gray-500">{{ $file->size }} B</td>
+                        <td class="py-3 text-sm text-gray-400">{{ $file->created_at->diffForHumans() }}</td>
                     </tr>
                 @endforeach
             </tbody>
