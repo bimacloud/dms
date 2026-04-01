@@ -37,6 +37,30 @@ document.addEventListener('alpine:init', () => {
         draggedId: null,
         dragHoverFolder: null,
 
+        // Image Preview State
+        zoomLevel: 100,
+        isMaximized: false,
+        previewMimeType: '',
+
+        zoomIn() { if (this.zoomLevel < 300) this.zoomLevel += 25 },
+        zoomOut() { if (this.zoomLevel > 25) this.zoomLevel -= 25 },
+        toggleMaximize() { 
+            this.isMaximized = !this.isMaximized; 
+            this.zoomLevel = 100;
+            setTimeout(() => lucide.createIcons(), 10);
+        },
+
+        init() {
+            this.$watch('showPreviewModal', value => {
+                if (value) {
+                    setTimeout(() => lucide.createIcons(), 50);
+                }
+            });
+            this.$watch('isMaximized', value => {
+                setTimeout(() => lucide.createIcons(), 10);
+            });
+        },
+
         showContextMenu(e, type, item = null) {
             this.contextMenuType = type;
             if (type === 'folder') this.contextMenuFolder = item;
@@ -81,9 +105,12 @@ document.addEventListener('alpine:init', () => {
                 : '{{ url('documents') }}/' + id;
             this.showMoveModal = true;
         },
-        openPreviewModal(url, name) {
+        openPreviewModal(url, name, mimeType = '') {
             this.previewUrl = url;
             this.previewName = name;
+            this.previewMimeType = mimeType;
+            this.zoomLevel = 100;
+            this.isMaximized = false;
             this.showPreviewModal = true;
         },
         checkDragOver(e) {
@@ -312,8 +339,8 @@ document.addEventListener('alpine:init', () => {
                         <!-- Mimic File Grid from traditional index, but slightly modernized for Drive -->
                         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group hover:border-blue-200 transition-all flex flex-col cursor-pointer"
                              draggable="true" @dragstart="startDrag('file', '{{ $file->id }}', $event)"
-                             @click="openPreviewModal('{{ route('documents.preview', $file->id) }}', '{{ addslashes($file->display_name) }}')"
-                             @contextmenu.prevent.stop="showContextMenu($event, 'file', { id: '{{ $file->id }}', name: '{{ addslashes($file->display_name) }}' })">
+                             @click="openPreviewModal('{{ route('documents.preview', $file->id) }}', '{{ addslashes($file->display_name) }}', '{{ $file->mime_type }}')"
+                             @contextmenu.prevent.stop="showContextMenu($event, 'file', { id: '{{ $file->id }}', name: '{{ addslashes($file->display_name) }}', mime_type: '{{ $file->mime_type }}' })">
                             <div class="aspect-[4/3] bg-gray-50 flex items-center justify-center relative group-hover:bg-blue-50 transition-colors">
                                 @if($file->thumbnail_path)
                                     <img src="{{ route('documents.thumbnail', $file->id) }}" class="w-full h-full object-cover">
@@ -334,7 +361,7 @@ document.addEventListener('alpine:init', () => {
                                 @endif
                                 
                                 <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                    <button @click.stop.prevent="openPreviewModal('{{ route('documents.preview', $file->id) }}', '{{ addslashes($file->display_name) }}')" class="p-2 bg-white rounded-lg hover:text-blue-600 transition-colors" title="View">
+                                    <button @click.stop.prevent="openPreviewModal('{{ route('documents.preview', $file->id) }}', '{{ addslashes($file->display_name) }}', '{{ $file->mime_type }}')" class="p-2 bg-white rounded-lg hover:text-blue-600 transition-colors" title="View">
                                         <i data-lucide="eye" class="w-4 h-4"></i>
                                     </button>
                                     <a href="{{ route('documents.download', $file->id) }}" @click.stop class="p-2 bg-white rounded-lg hover:text-green-600 transition-colors" title="Download">
@@ -502,7 +529,7 @@ document.addEventListener('alpine:init', () => {
          <!-- File specific options -->
          <template x-if="contextMenuType === 'file'">
             <div>
-                <button @click="openPreviewModal(`{{ url('documents') }}/${contextMenuFile.id}/preview`, contextMenuFile.display_name); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
+                <button @click="openPreviewModal(`{{ url('documents') }}/${contextMenuFile.id}/preview`, contextMenuFile.display_name, contextMenuFile.mime_type); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
                     <i data-lucide="eye" class="w-4 h-4 mr-3 text-blue-400"></i> Preview
                 </button>
                 <a :href="`{{ url('documents') }}/${contextMenuFile.id}/download`" @click="contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
@@ -525,36 +552,89 @@ document.addEventListener('alpine:init', () => {
 
     @include('share.modal')
 
-    <!-- Preview Modal -->
-    <div x-show="showPreviewModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md" x-cloak>
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden" @click.away="showPreviewModal = false">
-            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 bg-blue-50 rounded-xl">
-                        <i data-lucide="file-text" class="w-5 h-5 text-blue-600"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-bold text-gray-800" x-text="previewName"></h3>
-                        <p class="text-[10px] text-gray-400 font-medium">File Preview</p>
-                    </div>
+    <!-- Premium Preview Modal (Redesigned) -->
+    <div x-show="showPreviewModal" 
+         class="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-2xl transition-all duration-300"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         x-cloak>
+        
+        <!-- Floating Glass Toolbar -->
+        <div class="absolute top-6 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-4 px-6 py-3 bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl transition-all group">
+            <div class="flex items-center gap-3 pr-4 border-r border-white/10">
+                <div class="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                    <i data-lucide="eye" class="w-4 h-4 text-blue-400"></i>
                 </div>
-                <div class="flex items-center gap-2">
-                    <a :href="previewUrl" download class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Download">
-                        <i data-lucide="download" class="w-5 h-5"></i>
-                    </a>
-                    <button @click="showPreviewModal = false" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
-                        <i data-lucide="x" class="w-5 h-5"></i>
+                <div class="max-w-[200px] truncate">
+                    <h3 class="text-xs font-bold text-white truncate" x-text="previewName"></h3>
+                    <p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest" x-text="previewMimeType"></p>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <template x-if="previewMimeType.startsWith('image/')">
+                <div class="flex items-center gap-1">
+                    <button @click="zoomOut()" class="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-xl transition-all" title="Zoom Out">
+                        <i data-lucide="zoom-out" class="w-4 h-4"></i>
+                    </button>
+                    <span class="text-[10px] font-mono font-bold text-blue-400 w-12 text-center" x-text="zoomLevel + '%'"></span>
+                    <button @click="zoomIn()" class="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-xl transition-all" title="Zoom In">
+                        <i data-lucide="zoom-in" class="w-4 h-4"></i>
+                    </button>
+                    <div class="w-px h-4 bg-white/10 mx-1"></div>
+                    <button @click="toggleMaximize()" class="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-xl transition-all" :title="isMaximized ? 'Fit to Screen' : 'Actual Size'">
+                        <i :data-lucide="isMaximized ? 'minimize-2' : 'maximize-2'" class="w-4 h-4"></i>
                     </button>
                 </div>
-            </div>
-            <div class="flex-1 bg-gray-100 relative">
-                <template x-if="showPreviewModal">
-                    <iframe :src="previewUrl" class="w-full h-full border-none" @load="$el.classList.remove('opacity-0')" class="transition-opacity duration-300"></iframe>
-                </template>
-                <div class="absolute inset-0 flex items-center justify-center -z-10">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </template>
+
+            <div class="w-px h-4 bg-white/10 mx-1"></div>
+            
+            <a :href="previewUrl" download class="p-2 text-gray-300 hover:text-green-400 hover:bg-white/10 rounded-xl transition-all" title="Download">
+                <i data-lucide="download" class="w-4 h-4"></i>
+            </a>
+
+            <button @click="showPreviewModal = false" class="p-2 text-gray-300 hover:text-red-400 hover:bg-white/10 rounded-xl transition-all">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="w-full h-full flex items-center justify-center overflow-hidden cursor-default" @click.away="showPreviewModal = false">
+            <template x-if="showPreviewModal">
+                <div class="w-full h-full flex items-center justify-center relative">
+                    <!-- Image Preview -->
+                    <template x-if="previewMimeType.startsWith('image/')">
+                        <div class="w-full h-full overflow-auto flex items-center justify-center p-8 scrollbar-hide">
+                            <img :src="previewUrl" 
+                                 :style="isMaximized ? `width: auto; max-width: none; transform: scale(${zoomLevel/100}); cursor: zoom-out;` : 'max-width: 90%; max-height: 90%; object-fit: contain; cursor: zoom-in;'"
+                                 class="transition-all duration-300 shadow-[0_0_100px_rgba(0,0,0,0.5)] rounded-lg bg-gray-900/50"
+                                 @click="toggleMaximize()"
+                                 @load="$el.classList.remove('opacity-0')"
+                                 :class="isMaximized ? '' : 'max-w-full max-h-full'">
+                        </div>
+                    </template>
+
+                    <!-- Non-Image Preview (PDF, etc) -->
+                    <template x-if="!previewMimeType.startsWith('image/')">
+                        <div class="w-full max-w-6xl h-[85vh] bg-white rounded-3xl overflow-hidden shadow-2xl">
+                            <iframe :src="previewUrl" class="w-full h-full border-none" @load="$el.classList.remove('opacity-0')"></iframe>
+                        </div>
+                    </template>
+                    
+                    <!-- Fallback Loading -->
+                    <div class="absolute inset-0 flex items-center justify-center -z-10 bg-black/20">
+                        <div class="flex flex-col items-center gap-3">
+                            <div class="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+                            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Loading...</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </template>
         </div>
     </div>
 
