@@ -18,6 +18,10 @@ class StorageProvider extends Model
         'is_active',
         'is_default',
     ];
+    
+    protected $hidden = [
+        'secret',
+    ];
 
     protected $casts = [
         'use_path_style_endpoint' => 'boolean',

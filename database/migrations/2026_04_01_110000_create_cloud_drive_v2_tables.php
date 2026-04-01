@@ -41,6 +41,7 @@ return new class extends Migration
             $table->foreignId('storage_provider_id')->nullable()->constrained('storage_providers')->nullOnDelete();
             $table->string('display_name');
             $table->string('storage_path');
+            $table->string('thumbnail_path')->nullable();
             $table->string('mime_type');
             $table->foreignId('category_id')->nullable()->constrained()->nullOnDelete();
             $table->unsignedBigInteger('size');
