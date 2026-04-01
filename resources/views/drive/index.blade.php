@@ -281,14 +281,14 @@ document.addEventListener('alpine:init', () => {
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                 @foreach($folders as $f)
                     <div class="bg-white rounded-xl border border-gray-100 p-3 flex items-center shadow-sm hover:shadow hover:border-blue-200 transition-all group cursor-pointer"
-                         :class="{ 'ring-2 ring-blue-500 bg-blue-50': dragHoverFolder === {{ $f->id }} }"
+                         :class="{ 'ring-2 ring-blue-500 bg-blue-50': dragHoverFolder === '{{ $f->id }}' }"
                          @click="window.location='{{ route('drive.index', $f->id) }}'"
-                         @contextmenu.prevent.stop="showContextMenu($event, 'folder', { id: {{ $f->id }}, name: '{{ addslashes($f->name) }}' })"
+                         @contextmenu.prevent.stop="showContextMenu($event, 'folder', { id: '{{ $f->id }}', name: '{{ addslashes($f->name) }}' })"
                          draggable="true" 
-                         @dragstart="startDrag('folder', {{ $f->id }}, $event)"
-                         @dragover.prevent="if(draggedType && (draggedType !== 'folder' || draggedId !== {{ $f->id }})) dragHoverFolder = {{ $f->id }}"
+                         @dragstart="startDrag('folder', '{{ $f->id }}', $event)"
+                         @dragover.prevent="if(draggedType && (draggedType !== 'folder' || draggedId !== '{{ $f->id }}')) dragHoverFolder = '{{ $f->id }}'"
                          @dragleave.prevent="dragHoverFolder = null"
-                         @drop.prevent="handleInternalDrop({{ $f->id }}, $event)">
+                         @drop.prevent="handleInternalDrop('{{ $f->id }}', $event)">
                         
                         <i data-lucide="folder" class="w-6 h-6 text-yellow-400 fill-yellow-400 mr-3 shrink-0"></i>
                         <span class="text-xs font-bold text-gray-700 truncate flex-1" title="{{ $f->name }}">{{ $f->name }}</span>
@@ -487,6 +487,9 @@ document.addEventListener('alpine:init', () => {
                 <button @click="openMoveModal('folder', contextMenuFolder.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
                     <i data-lucide="folder-output" class="w-4 h-4 mr-3 text-gray-400"></i> Move To
                 </button>
+                <button @click="openShareModal(contextMenuFolder.id, contextMenuFolder.name); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
+                    <i data-lucide="share-2" class="w-4 h-4 mr-3 text-indigo-400"></i> Share Folder
+                </button>
                 <div class="h-px bg-gray-100 my-1 w-full"></div>
                 <button @click="openDeleteModal('folder', contextMenuFolder.name, '{{ url('folders') }}/' + contextMenuFolder.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 flex items-center font-medium">
                     <i data-lucide="trash-2" class="w-4 h-4 mr-3 text-red-500"></i> Delete Folder
@@ -497,21 +500,21 @@ document.addEventListener('alpine:init', () => {
          <!-- File specific options -->
          <template x-if="contextMenuType === 'file'">
             <div>
-                <a :href="`{{ url('api/files') }}/${contextMenuFile.id}/preview`" target="_blank" @click="contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
+                <button @click="openPreviewModal(`{{ url('documents') }}/${contextMenuFile.id}/preview`, contextMenuFile.display_name); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
                     <i data-lucide="eye" class="w-4 h-4 mr-3 text-blue-400"></i> Preview
-                </a>
-                <a :href="`{{ url('api/files') }}/${contextMenuFile.id}/download`" @click="contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
+                </button>
+                <a :href="`{{ url('documents') }}/${contextMenuFile.id}/download`" @click="contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
                     <i data-lucide="download-cloud" class="w-4 h-4 mr-3 text-green-400"></i> Download
                 </a>
                 <div class="h-px bg-gray-100 my-1 w-full"></div>
-                <button @click="openShareModal(contextMenuFile.id, contextMenuFile.name); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
+                <button @click="openShareModal(contextMenuFile.id, contextMenuFile.display_name); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
                     <i data-lucide="share-2" class="w-4 h-4 mr-3 text-indigo-400"></i> Share
                 </button>
                 <button @click="openMoveModal('file', contextMenuFile.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
                     <i data-lucide="folder-output" class="w-4 h-4 mr-3 text-gray-400"></i> Move To
                 </button>
                 <div class="h-px bg-gray-100 my-1 w-full"></div>
-                <button @click="openDeleteModal('file', contextMenuFile.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 flex items-center font-medium">
+                <button @click="openDeleteModal('file', contextMenuFile.display_name, '{{ url('documents') }}/' + contextMenuFile.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 flex items-center font-medium">
                     <i data-lucide="trash-2" class="w-4 h-4 mr-3 text-red-500"></i> Delete File
                 </button>
             </div>
