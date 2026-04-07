@@ -212,7 +212,15 @@
                                     {{ $u->total_disk_space }} / {{ $u->formatted_disk_quota }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-right space-x-1">
+                             <td class="px-6 py-4 text-right space-x-1">
+                                @if(auth()->user()->role->name === 'root' && $u->id !== auth()->id())
+                                <form action="{{ route('users.impersonate', $u->id) }}" method="POST" class="inline">
+                                    @csrf
+                                    <button type="submit" class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Login As {{ $u->name }}">
+                                        <i data-lucide="user-cog" class="w-4 h-4"></i>
+                                    </button>
+                                </form>
+                                @endif
                                 <button @click="editUser({ id: '{{ $u->id }}', name: '{{ addslashes($u->name) }}', email: '{{ $u->email }}', role_id: '{{ $u->role_id }}', position_id: '{{ $u->position_id }}', raw_quota: {{ $u->disk_quota ? $u->disk_quota : 'null' }} })" 
                                     class="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Edit User">
                                     <i data-lucide="edit-3" class="w-4 h-4"></i>

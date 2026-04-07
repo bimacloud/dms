@@ -72,7 +72,13 @@ Route::middleware(['auth', 'check.menu'])->group(function () {
         Route::post('/settings/storage', [\App\Http\Controllers\StorageProviderController::class, 'store'])->name('settings.storage.store');
         Route::put('/settings/storage/{storageProvider}', [\App\Http\Controllers\StorageProviderController::class, 'update'])->name('settings.storage.update');
         Route::delete('/settings/storage/{storageProvider}', [\App\Http\Controllers\StorageProviderController::class, 'destroy'])->name('settings.storage.destroy');
+
+        // Impersonation (Root only)
+        Route::post('/users/{user}/impersonate', [\App\Http\Controllers\UserController::class, 'impersonate'])->name('users.impersonate');
     });
+
+    // Stop Impersonating (Auth)
+    Route::post('/users/stop-impersonating', [\App\Http\Controllers\UserController::class, 'stopImpersonating'])->name('users.stop-impersonating');
     Route::get('/reports', function() { return view('layouts.app')->with('content', 'Reports Page'); })->name('reports.index');
     Route::get('/network', function() { return view('layouts.app')->with('content', 'Network Status Page'); })->name('network.index');
     Route::get('/customers', function() { return view('layouts.app')->with('content', 'Customers Page'); })->name('customers.index');

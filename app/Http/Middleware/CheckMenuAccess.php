@@ -22,7 +22,7 @@ class CheckMenuAccess
         }
 
         // Allow access to standard home/dashboard or specific routes if needed
-        $allowedRoutes = ['dashboard', 'login', 'logout', 'welcome'];
+        $allowedRoutes = ['dashboard', 'login', 'logout', 'welcome', 'users.stop-impersonating'];
         $currentRoute = $request->route()->getName();
 
         if (in_array($currentRoute, $allowedRoutes)) {

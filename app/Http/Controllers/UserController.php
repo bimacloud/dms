@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\Position;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
@@ -121,5 +122,34 @@ class UserController extends Controller
         }
         $user->delete();
         return redirect()->route('users.index')->with('success', 'User deleted successfully.');
+    }
+
+    public function impersonate(User $user)
+    {
+        if (Auth::user()->role->name !== 'root') {
+            abort(403, 'Only Root can impersonate users.');
+        }
+
+        if ($user->id === Auth::id()) {
+            return back()->with('error', 'You cannot impersonate yourself.');
+        }
+
+        session(['impersonator_id' => Auth::id()]);
+        Auth::login($user);
+
+        return redirect()->route('dashboard')->with('success', 'You are now logged in as ' . $user->name);
+    }
+
+    public function stopImpersonating()
+    {
+        if (!session()->has('impersonator_id')) {
+            return redirect()->route('dashboard');
+        }
+
+        $originalUserId = session('impersonator_id');
+        Auth::loginUsingId($originalUserId);
+        session()->forget('impersonator_id');
+
+        return redirect()->route('users.index')->with('success', 'You are back to your original account.');
     }
 }

@@ -157,6 +157,18 @@
                             {{ auth()->user()->role->name }}
                         </div>
                     </div>
+                    @if(session()->has('impersonator_id'))
+                        <div class="flex items-center px-4 py-1.5 bg-amber-50 border border-amber-200 rounded-xl mr-2">
+                            <span class="text-[10px] font-black text-amber-700 uppercase tracking-widest mr-3">Impersonation Mode</span>
+                            <form action="{{ route('users.stop-impersonating') }}" method="POST">
+                                @csrf
+                                <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black px-4 py-2 rounded-xl transition-all shadow-lg shadow-amber-200/50 flex items-center gap-2 uppercase tracking-widest">
+                                    <i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
+                                    Back to Root
+                                </button>
+                            </form>
+                        </div>
+                    @endif
                     <form action="{{ route('logout') }}" method="POST">
                         @csrf
                         <button type="submit" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
