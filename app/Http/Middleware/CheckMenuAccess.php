@@ -21,11 +21,14 @@ class CheckMenuAccess
             return $next($request);
         }
 
-        // Allow access to standard home/dashboard or specific routes if needed
+        // Allow access to standard dashboard, profile, and functional file actions
         $allowedRoutes = ['dashboard', 'login', 'logout', 'welcome', 'users.stop-impersonating'];
+        $globalFunctionalBases = ['documents', 'web.folders', 'share-links', 'shared', 'drive', 'download'];
+        
         $currentRoute = $request->route()->getName();
+        $currentBaseRoute = str_contains($currentRoute, '.') ? explode('.', $currentRoute)[0] : $currentRoute;
 
-        if (in_array($currentRoute, $allowedRoutes)) {
+        if (in_array($currentRoute, $allowedRoutes) || in_array($currentBaseRoute, $globalFunctionalBases)) {
             return $next($request);
         }
 
