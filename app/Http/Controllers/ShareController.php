@@ -41,7 +41,7 @@ class ShareController extends Controller
             'shareable_type' => 'required|string|in:file,folder',
             'shareable_id' => 'required|uuid',
             'shared_with_id' => 'nullable|exists:users,id',
-            'permission' => 'nullable|string|in:view,edit',
+            'permission' => 'nullable|string|in:view,download,edit',
             'password' => 'nullable|string|min:4',
             'expires_at' => 'nullable|date|after:now',
         ]);

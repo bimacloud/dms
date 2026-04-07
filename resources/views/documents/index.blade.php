@@ -9,7 +9,8 @@
     previewType: null,
     shareModalDocId: null,
     shareModalDocTitle: null,
-    showShareModal: false,
+    shareModalDocType: 'file',
+    showShareModal: {{ (session('success') && session('share_link')) ? 'true' : 'false' }},
     filePreview: null,
     fileName: '',
     isUploading: false,
@@ -73,9 +74,10 @@
         };
         input.click();
     },
-    openShareModal(id, title) {
+    openShareModal(id, title, type = 'file') {
         this.shareModalDocId = id;
         this.shareModalDocTitle = title;
+        this.shareModalDocType = type;
         this.showShareModal = true;
     },
     closePreview() { this.previewUrl = null; this.previewType = null; }

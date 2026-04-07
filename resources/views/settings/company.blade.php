@@ -23,7 +23,7 @@
                     <div class="flex items-center gap-6">
                         <div class="w-24 h-24 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
                             @if($setting->company_logo)
-                                <img src="{{ Storage::url($setting->company_logo) }}" class="w-full h-full object-contain p-2">
+                                <img src="{{ asset('storage/' . $setting->company_logo) }}" class="w-full h-full object-contain p-2">
                             @else
                                 <i data-lucide="image" class="w-8 h-8 text-gray-300"></i>
                             @endif

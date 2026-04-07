@@ -9,12 +9,16 @@
          x-data="{ 
             activeTab: 'public',
             isGenerating: false,
-            generatedLink: '',
+            generatedLink: '{{ session('share_link') ?? '' }}',
             error: '',
+            init() {
+                if (this.generatedLink) {
+                    this.activeTab = 'public';
+                }
+            },
             async generatePublicLink() {
                 this.isGenerating = true;
                 this.error = '';
-                this.generatedLink = '';
                 
                 try {
                     const formData = new FormData(this.$refs.publicForm);
@@ -54,50 +58,52 @@
             </button>
         </div>
 
-        <!-- Generated Link Section (AJAX Success) -->
-        <div x-show="generatedLink" x-transition class="px-6 py-4 bg-green-50 border-b border-green-100 flex flex-col items-start gap-2">
-            <p class="text-sm font-bold text-green-700">Link Generated:</p>
-            <div class="flex items-center w-full gap-2">
-                <input type="text" readonly :value="generatedLink" class="flex-1 text-xs px-3 py-2 bg-white border border-green-200 rounded-lg outline-none text-gray-600" id="shareLinkInputAjx">
-                <button type="button" @click="navigator.clipboard.writeText(generatedLink); alert('Copied!')" class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors">Copy</button>
-            </div>
-        </div>
-
-        <!-- Error Message (AJAX Error) -->
-        <div x-show="error" x-transition class="px-6 py-3 bg-red-50 border-b border-red-100">
-            <p class="text-xs font-bold text-red-600" x-text="error"></p>
-        </div>
-
-        <!-- Success Message from session (Fallback) -->
-        @if(session('success') && session('share_link'))
-            <div class="px-6 py-4 bg-green-50 border-b border-green-100 flex flex-col items-start gap-2">
-                <p class="text-sm font-bold text-green-700">Link Generated:</p>
-                <div class="flex items-center w-full gap-2">
-                    <input type="text" readonly value="{{ session('share_link') }}" class="flex-1 text-xs px-3 py-2 bg-white border border-green-200 rounded-lg outline-none text-gray-600" id="shareLinkInput">
-                    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('shareLinkInput').value); alert('Copied!')" class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors">Copy</button>
-                </div>
-            </div>
-        @endif
-
         @if($errors->any())
             <div class="px-6 py-3 bg-red-50 border-b border-red-100">
                 <p class="text-xs font-bold text-red-600">{{ $errors->first() }}</p>
             </div>
         @endif
 
-        <!-- Tabs -->
-        <div class="flex border-b border-gray-100 px-6 pt-2 bg-white">
-            <button @click="activeTab = 'public'" 
-                    class="px-4 py-3 text-xs font-bold transition-colors border-b-2"
-                    :class="activeTab === 'public' ? 'text-blue-600 border-blue-600' : 'text-gray-400 border-transparent hover:text-gray-600'">
-                Public Link
-            </button>
-            <button @click="activeTab = 'internal'" 
-                    class="px-4 py-3 text-xs font-bold transition-colors border-b-2"
-                    :class="activeTab === 'internal' ? 'text-blue-600 border-blue-600' : 'text-gray-400 border-transparent hover:text-gray-600'">
-                Internal Users
+        <!-- Success View (Pop-up style) -->
+        <div x-show="generatedLink" x-transition class="p-8 text-center">
+            <div class="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-100 shadow-sm">
+                <i data-lucide="check-circle-2" class="w-8 h-8 text-green-500"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Share Link Ready!</h3>
+            <p class="text-xs text-gray-500 mb-6">Anyone with this link can now access the document.</p>
+            
+            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-6 group">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest text-left mb-2 ml-1">Generated URL</p>
+                <div class="flex items-center gap-2">
+                    <input type="text" readonly :value="generatedLink" class="flex-1 text-xs px-3 py-2.5 bg-white border border-gray-200 rounded-xl outline-none text-gray-600 font-medium" id="shareLinkInputAjx">
+                    <button type="button" @click="navigator.clipboard.writeText(generatedLink); alert('Link copied to clipboard!')" 
+                            class="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        Copy
+                    </button>
+                </div>
+            </div>
+
+            <button @click="showShareModal = false; generatedLink = ''" class="w-full py-3 bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold rounded-xl shadow-lg transition-all">
+                Done
             </button>
         </div>
+
+        <!-- Tabs & Forms (Hidden on success) -->
+        <div x-show="!generatedLink">
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-100 px-6 pt-2 bg-white">
+                <button @click="activeTab = 'public'" 
+                        class="px-4 py-3 text-xs font-bold transition-colors border-b-2"
+                        :class="activeTab === 'public' ? 'text-blue-600 border-blue-600' : 'text-gray-400 border-transparent hover:text-gray-600'">
+                    Public Link
+                </button>
+                <button @click="activeTab = 'internal'" 
+                        class="px-4 py-3 text-xs font-bold transition-colors border-b-2"
+                        :class="activeTab === 'internal' ? 'text-blue-600 border-blue-600' : 'text-gray-400 border-transparent hover:text-gray-600'">
+                    Internal Users
+                </button>
+            </div>
 
         <!-- Tab Content -->
         <div class="p-6">
@@ -181,6 +187,5 @@
                 </form>
             </div>
         </div>
-
     </div>
 </div>

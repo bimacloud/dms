@@ -17,7 +17,7 @@ document.addEventListener('alpine:init', () => {
         deleteFormAction: '',
         deleteTitle: '',
         deleteType: '',
-        showShareModal: false,
+        showShareModal: {{ (session('success') && session('share_link')) ? 'true' : 'false' }},
         shareModalDocId: '',
         shareModalDocTitle: '',
         shareModalDocType: 'file',

@@ -7,6 +7,7 @@ use App\Models\File;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Str;
 
 class UserShareController extends Controller
 {
@@ -35,6 +36,10 @@ class UserShareController extends Controller
      */
     public function store(Request $request)
     {
+        $request->merge([
+            'email' => strtolower(trim($request->email))
+        ]);
+
         $request->validate([
             'document_id' => 'required|uuid|exists:files,id',
             'email' => 'required|string',
@@ -72,7 +77,7 @@ class UserShareController extends Controller
             return redirect()->back()->with('success', "File shared successfully with all accounts.");
         }
 
-        Share::updateOrCreate([
+        $share = Share::updateOrCreate([
             'shareable_type' => File::class,
             'shareable_id' => $file->id,
             'shared_with_id' => $targetUser->id,
@@ -81,7 +86,14 @@ class UserShareController extends Controller
             'permission' => $request->permission,
         ]);
 
-        return redirect()->back()->with('success', 'File shared successfully.');
+        if (!$share->access_token) {
+            $share->access_token = Str::random(40);
+            $share->save();
+        }
+
+        return redirect()->back()
+            ->with('success', 'File shared successfully.')
+            ->with('share_link', url("/share/{$share->access_token}"));
     }
 
     /**

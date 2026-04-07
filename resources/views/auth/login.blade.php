@@ -266,7 +266,7 @@
         <div class="company-info">
             <a href="/" class="logo">
                 @if($setting && $setting->company_logo)
-                    <img src="{{ Storage::url($setting->company_logo) }}" alt="Logo" style="height: 40px; width: auto; max-width: 150px; object-fit: contain;">
+                    <img src="{{ asset('storage/' . $setting->company_logo) }}" alt="Logo" style="height: 40px; width: auto; max-width: 150px; object-fit: contain;">
                 @else
                     <span>🌐</span>
                     {{ $shortName }}
