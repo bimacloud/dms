@@ -67,6 +67,12 @@ Route::middleware(['auth', 'check.menu'])->group(function () {
         Route::get('/settings/company', [\App\Http\Controllers\SettingController::class, 'index'])->name('settings.company');
         Route::post('/settings/company', [\App\Http\Controllers\SettingController::class, 'store'])->name('settings.company.store');
 
+        // Positions
+        Route::get('/settings/positions', [\App\Http\Controllers\PositionController::class, 'index'])->name('positions.index');
+        Route::post('/settings/positions', [\App\Http\Controllers\PositionController::class, 'store'])->name('positions.store');
+        Route::put('/settings/positions/{position}', [\App\Http\Controllers\PositionController::class, 'update'])->name('positions.update');
+        Route::delete('/settings/positions/{position}', [\App\Http\Controllers\PositionController::class, 'destroy'])->name('positions.destroy');
+
         // Storage Providers
         Route::get('/settings/storage', [\App\Http\Controllers\StorageProviderController::class, 'index'])->name('settings.storage');
         Route::post('/settings/storage', [\App\Http\Controllers\StorageProviderController::class, 'store'])->name('settings.storage.store');
