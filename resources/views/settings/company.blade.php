@@ -13,6 +13,16 @@
             <i data-lucide="settings" class="w-8 h-8 text-blue-500"></i>
         </div>
 
+        @if ($errors->any())
+            <div class="p-6 bg-red-50 border-b border-red-100">
+                <ul class="list-disc list-inside text-sm text-red-600 space-y-1">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <form action="{{ route('settings.company.store') }}" method="POST" enctype="multipart/form-data" class="p-8">
             @csrf
             
@@ -29,8 +39,11 @@
                             @endif
                         </div>
                         <div class="flex-1">
-                            <input type="file" name="company_logo" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all cursor-pointer">
-                            <p class="text-xs text-gray-400 mt-2">Recommended: Standard landscape or square image (Max 2MB)</p>
+                            <input type="file" name="company_logo" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all cursor-pointer @error('company_logo') border-red-500 @enderror">
+                            @error('company_logo')
+                                <p class="text-xs text-red-500 mt-2">{{ $message }}</p>
+                            @enderror
+                            <p class="text-xs text-gray-400 mt-2">Recommended: Standard landscape or square image (Max 10MB)</p>
                         </div>
                     </div>
                 </div>
@@ -41,12 +54,18 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="col-span-1 md:col-span-2">
                         <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Company Name</label>
-                        <input type="text" name="company_name" value="{{ old('company_name', $setting->company_name) }}" class="w-full rounded-2xl border-gray-100 bg-gray-50 p-4 text-sm focus:ring-4 focus:ring-blue-500/10 focus:bg-white focus:border-blue-500 transition-all border outline-none font-medium" required>
+                        <input type="text" name="company_name" value="{{ old('company_name', $setting->company_name) }}" class="w-full rounded-2xl border-gray-100 bg-gray-50 p-4 text-sm focus:ring-4 focus:ring-blue-500/10 focus:bg-white focus:border-blue-500 transition-all border outline-none font-medium @error('company_name') border-red-500 @enderror" required>
+                        @error('company_name')
+                            <p class="text-xs text-red-500 mt-2">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div class="col-span-1 md:col-span-2">
                         <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Company Subtitle / Tagline</label>
-                        <textarea name="company_subtitle" rows="3" class="w-full rounded-2xl border-gray-100 bg-gray-50 p-4 text-sm focus:ring-4 focus:ring-blue-500/10 focus:bg-white focus:border-blue-500 transition-all border outline-none font-medium">{{ old('company_subtitle', $setting->company_subtitle) }}</textarea>
+                        <textarea name="company_subtitle" rows="3" class="w-full rounded-2xl border-gray-100 bg-gray-50 p-4 text-sm focus:ring-4 focus:ring-blue-500/10 focus:bg-white focus:border-blue-500 transition-all border outline-none font-medium @error('company_subtitle') border-red-500 @enderror">{{ old('company_subtitle', $setting->company_subtitle) }}</textarea>
+                        @error('company_subtitle')
+                            <p class="text-xs text-red-500 mt-2">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
             </div>

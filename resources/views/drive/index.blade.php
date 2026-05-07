@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('header', 'My Drive')
+@section('header', 'Drive Saya')
 
 @section('content')
 <script>
@@ -10,7 +10,7 @@ document.addEventListener('alpine:init', () => {
         folderToRename: null,
         folderName: '',
         showMoveModal: false,
-        moveType: 'document',
+        moveType: 'dokumen',
         moveId: null,
         moveTargetUrl: '',
         showDeleteModal: false,
@@ -21,9 +21,15 @@ document.addEventListener('alpine:init', () => {
         shareModalDocId: '',
         shareModalDocTitle: '',
         shareModalDocType: 'file',
+        
+        // Preview State
         showPreviewModal: false,
         previewUrl: '',
         previewName: '',
+        previewMimeType: '',
+        zoomLevel: 100,
+        isMaximized: false,
+
         contextMenuOpen: false,
         contextMenuX: 0,
         contextMenuY: 0,
@@ -37,11 +43,6 @@ document.addEventListener('alpine:init', () => {
         draggedId: null,
         dragHoverFolder: null,
 
-        // Image Preview State
-        zoomLevel: 100,
-        isMaximized: false,
-        previewMimeType: '',
-
         zoomIn() { if (this.zoomLevel < 300) this.zoomLevel += 25 },
         zoomOut() { if (this.zoomLevel > 25) this.zoomLevel -= 25 },
         toggleMaximize() { 
@@ -50,15 +51,14 @@ document.addEventListener('alpine:init', () => {
             setTimeout(() => lucide.createIcons(), 10);
         },
 
-        init() {
-            this.$watch('showPreviewModal', value => {
-                if (value) {
-                    setTimeout(() => lucide.createIcons(), 50);
-                }
-            });
-            this.$watch('isMaximized', value => {
-                setTimeout(() => lucide.createIcons(), 10);
-            });
+        openPreviewModal(url, name, mimeType = '') {
+            this.previewUrl = url;
+            this.previewName = name;
+            this.previewMimeType = mimeType || '';
+            this.zoomLevel = 100;
+            this.isMaximized = false;
+            this.showPreviewModal = true;
+            setTimeout(() => lucide.createIcons(), 50);
         },
 
         showContextMenu(e, type, item = null) {
@@ -87,7 +87,7 @@ document.addEventListener('alpine:init', () => {
             this.showShareModal = true;
         },
         openDeleteModal(type, title, actionTarget) {
-            this.deleteType = type;
+            this.deleteType = type === 'folder' ? 'Folder' : 'File';
             this.deleteTitle = title;
             this.deleteFormAction = actionTarget;
             this.showDeleteModal = true;
@@ -98,20 +98,12 @@ document.addEventListener('alpine:init', () => {
             this.showNewFolderModal = false;
         },
         openMoveModal(type, id) {
-            this.moveType = type;
+            this.moveType = type === 'folder' ? 'Folder' : 'File';
             this.moveId = id;
             this.moveTargetUrl = type === 'folder' 
                 ? '{{ url('folders') }}/' + id
                 : '{{ url('documents') }}/' + id;
             this.showMoveModal = true;
-        },
-        openPreviewModal(url, name, mimeType = '') {
-            this.previewUrl = url;
-            this.previewName = name;
-            this.previewMimeType = mimeType;
-            this.zoomLevel = 100;
-            this.isMaximized = false;
-            this.showPreviewModal = true;
         },
         checkDragOver(e) {
             if (e.dataTransfer.types && e.dataTransfer.types.includes('Files') && !this.draggedType) {
@@ -181,7 +173,7 @@ document.addEventListener('alpine:init', () => {
                         })
                     });
                     
-                    if (!startRes.ok) throw new Error('Failed');
+                    if (!startRes.ok) throw new Error('Gagal');
                     const uploadData = await startRes.json();
 
                     const xhr = new XMLHttpRequest();
@@ -223,12 +215,12 @@ document.addEventListener('alpine:init', () => {
 
                     if (!completeRes.ok) {
                         const errorData = await completeRes.json();
-                        throw new Error(errorData.error || 'Failed to complete upload metadata');
+                        throw new Error(errorData.error || 'Gagal melengkapi metadata');
                     }
                     
                 } catch (err) {
                     console.error(err);
-                    alert(`Upload failed for ${file.name}`);
+                    alert(`Gagal mengunggah ${file.name}`);
                     hasError = true;
                     break;
                 }
@@ -241,8 +233,8 @@ document.addEventListener('alpine:init', () => {
 });
 </script>
 
-<div class="flex flex-col md:flex-row h-full w-full gap-6 max-w-7xl mx-auto" x-data="driveData">
-    <!-- Top Action Bar for mobile / Breadcrumbs -->
+<div class="flex flex-col h-full w-full gap-6 max-w-7xl mx-auto" x-data="driveData">
+    <!-- Top Action Bar -->
     <div class="w-full flex-1 flex flex-col min-w-0 relative min-h-screen"
          @click="contextMenuOpen = false"
          @contextmenu.prevent="if($event.target.closest('.group') === null) showContextMenu($event, 'bg')"
@@ -253,38 +245,38 @@ document.addEventListener('alpine:init', () => {
          <!-- Drag Overlay -->
          <input type="file" id="hiddenFileInput" class="hidden" multiple @change="if($event.target.files.length) uploadFiles($event.target.files)">
          
-         <div x-show="isDragging" class="absolute inset-0 z-50 bg-blue-50/90 border-4 border-dashed border-blue-500 rounded-3xl flex items-center justify-center backdrop-blur-sm pointer-events-none" x-transition x-cloak>
+         <div x-show="isDragging" class="absolute inset-0 z-50 bg-blue-50/90 border-4 border-dashed border-blue-500 rounded-[3rem] flex items-center justify-center backdrop-blur-sm pointer-events-none" x-transition x-cloak>
             <div class="text-center">
                 <i data-lucide="upload-cloud" class="w-16 h-16 text-blue-600 mx-auto mb-4 pointer-events-none animate-bounce"></i>
-                <h2 class="text-2xl font-bold text-blue-700 pointer-events-none">Drop file to upload</h2>
+                <h2 class="text-2xl font-bold text-blue-700 pointer-events-none">Lepaskan untuk mengunggah</h2>
             </div>
          </div>
 
          <!-- Upload Progress -->
-         <div x-show="isUploading" class="absolute inset-0 z-50 bg-white/90 rounded-3xl flex items-center justify-center backdrop-blur-sm" x-cloak>
-            <div class="text-center w-64 bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
-                <i data-lucide="loader" class="w-8 h-8 text-blue-600 mx-auto mb-4 animate-spin"></i>
-                <h2 class="text-sm font-bold text-gray-800 mb-3">Uploading... <span x-text="uploadProgress"></span>%</h2>
+         <div x-show="isUploading" class="absolute inset-0 z-[150] bg-white/90 rounded-[3rem] flex items-center justify-center backdrop-blur-sm" x-cloak>
+            <div class="text-center w-64 bg-white p-8 rounded-3xl shadow-2xl border border-gray-100">
+                <i data-lucide="loader" class="w-10 h-10 text-blue-600 mx-auto mb-4 animate-spin"></i>
+                <h2 class="text-sm font-bold text-gray-800 mb-4">Mengunggah... <span x-text="uploadProgress"></span>%</h2>
                 <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                     <div class="bg-blue-600 h-full rounded-full transition-all duration-300" :style="`width: ${uploadProgress}%`"></div>
                 </div>
             </div>
          </div>
 
-        <div class="flex items-center justify-between mb-6 relative z-10">
-            <div class="flex items-center text-xl font-bold text-gray-800 tracking-tight gap-2 overflow-x-auto whitespace-nowrap hide-scrollbar pb-1">
-                <a href="{{ route('drive.index') }}" class="hover:underline flex items-center px-2 py-1 rounded-lg transition-colors border border-transparent"
+        <div class="flex items-center justify-between mb-8 relative z-10 bg-white/50 backdrop-blur-md p-4 rounded-3xl border border-gray-100">
+            <div class="flex items-center text-lg font-bold text-gray-800 tracking-tight gap-2 overflow-x-auto whitespace-nowrap hide-scrollbar">
+                <a href="{{ route('drive.index') }}" class="hover:bg-blue-50 hover:text-blue-600 flex items-center px-4 py-2 rounded-2xl transition-all border border-transparent"
                    :class="{ 'bg-blue-50 border-blue-200 text-blue-700': dragHoverFolder === 'root' }"
                    @dragover.prevent="if(draggedType) dragHoverFolder = 'root'"
                    @dragleave.prevent="if(dragHoverFolder === 'root') dragHoverFolder = null"
                    @drop.prevent="handleInternalDrop('', $event)">
-                    <i data-lucide="hard-drive" class="w-5 h-5 mr-2 text-blue-600"></i> My Drive
+                    <i data-lucide="hard-drive" class="w-5 h-5 mr-2 text-blue-600"></i> Drive Saya
                 </a>
                 
                 @if(isset($breadcrumbs))
                     @foreach($breadcrumbs as $bc)
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
-                        <a href="{{ route('drive.index', $bc->id) }}" class="hover:underline px-2 py-1 rounded-lg border border-transparent transition-colors {{ $loop->last ? 'text-blue-600' : 'text-gray-600' }}"
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300"></i>
+                        <a href="{{ route('drive.index', $bc->id) }}" class="hover:bg-blue-50 px-4 py-2 rounded-2xl border border-transparent transition-all {{ $loop->last ? 'text-blue-600 bg-blue-50/50' : 'text-gray-500' }}"
                            :class="{ 'bg-blue-50 border-blue-200 text-blue-700': dragHoverFolder === {{ $bc->id }} }"
                            @dragover.prevent="if(draggedType && (draggedType !== 'folder' || draggedId !== {{ $bc->id }})) dragHoverFolder = {{ $bc->id }}"
                            @dragleave.prevent="if(dragHoverFolder === {{ $bc->id }}) dragHoverFolder = null"
@@ -295,21 +287,23 @@ document.addEventListener('alpine:init', () => {
                 @endif
             </div>
 
-            <!-- Action Buttons -->
-            <div class="flex gap-2 shrink-0">
-                <button @click="showNewFolderModal = true; folderToRename = null; folderName = ''" class="flex items-center px-4 py-2 bg-gray-800 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow transition-all">
-                    <i data-lucide="folder-plus" class="w-4 h-4 mr-2"></i> New Folder
+            <div class="flex gap-3 shrink-0">
+                <button @click="document.getElementById('hiddenFileInput').click()" class="flex items-center px-6 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-2xl shadow-xl shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95">
+                    <i data-lucide="upload-cloud" class="w-4 h-4 mr-2"></i> Unggah
+                </button>
+                <button @click="showNewFolderModal = true; folderToRename = null; folderName = ''" class="flex items-center px-6 py-2.5 bg-gray-800 text-white text-xs font-bold rounded-2xl shadow-xl shadow-gray-800/20 hover:bg-gray-900 transition-all active:scale-95">
+                    <i data-lucide="folder-plus" class="w-4 h-4 mr-2"></i> Folder Baru
                 </button>
             </div>
         </div>
 
         <!-- Folders Section -->
         @if($folders->count() > 0)
-        <div class="mb-8">
-            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Folders</h3>
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+        <div class="mb-10">
+            <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-2">Folder</h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                 @foreach($folders as $f)
-                    <div class="bg-white rounded-xl border border-gray-100 p-3 flex items-center shadow-sm hover:shadow hover:border-blue-200 transition-all group cursor-pointer"
+                    <div class="bg-white rounded-3xl border border-gray-100 p-4 flex items-center shadow-sm hover:shadow-xl hover:border-blue-200 transition-all group cursor-pointer"
                          :class="{ 'ring-2 ring-blue-500 bg-blue-50': dragHoverFolder === '{{ $f->id }}' }"
                          @click="window.location='{{ route('drive.index', $f->id) }}'"
                          @contextmenu.prevent.stop="showContextMenu($event, 'folder', { id: '{{ $f->id }}', name: '{{ addslashes($f->name) }}' })"
@@ -319,10 +313,10 @@ document.addEventListener('alpine:init', () => {
                          @dragleave.prevent="dragHoverFolder = null"
                          @drop.prevent="handleInternalDrop('{{ $f->id }}', $event)">
                         
-                        <i data-lucide="folder" class="w-6 h-6 text-yellow-400 fill-yellow-400 mr-3 shrink-0"></i>
+                        <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center mr-4 group-hover:bg-amber-100 transition-all">
+                            <i data-lucide="folder" class="w-6 h-6 text-amber-500 fill-amber-500"></i>
+                        </div>
                         <span class="text-xs font-bold text-gray-700 truncate flex-1" title="{{ $f->name }}">{{ $f->name }}</span>
-                        
-                        <!-- Removed 3-dot dropdown favoring unified Right Click contextual flows -->
                     </div>
                 @endforeach
             </div>
@@ -330,17 +324,17 @@ document.addEventListener('alpine:init', () => {
         @endif
 
         <!-- Files Section -->
-        <div>
-            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Files</h3>
+        <div class="flex-1">
+            <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-2">File</h3>
             
             @if($files->count() > 0)
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                     @foreach($files as $file)
-                        <!-- Mimic File Grid from traditional index, but slightly modernized for Drive -->
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group hover:border-blue-200 transition-all flex flex-col cursor-pointer"
+                        <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden group hover:border-blue-300 hover:shadow-2xl hover:shadow-blue-500/10 transition-all flex flex-col cursor-pointer relative"
                              draggable="true" @dragstart="startDrag('file', '{{ $file->id }}', $event)"
                              @click="openPreviewModal('{{ route('documents.preview', $file->id) }}', '{{ addslashes($file->display_name) }}', '{{ $file->mime_type }}')"
                              @contextmenu.prevent.stop="showContextMenu($event, 'file', { id: '{{ $file->id }}', name: '{{ addslashes($file->display_name) }}', mime_type: '{{ $file->mime_type }}' })">
+                            
                             <div class="aspect-[4/3] bg-gray-50 flex items-center justify-center relative group-hover:bg-blue-50 transition-colors">
                                 @if($file->thumbnail_path)
                                     <img src="{{ route('documents.thumbnail', $file->id) }}" class="w-full h-full object-cover">
@@ -355,289 +349,215 @@ document.addEventListener('alpine:init', () => {
                                             if (str_contains($file->mime_type, 'video')) $icon = 'video';
                                             if (str_contains($file->mime_type, 'audio')) $icon = 'music';
                                         @endphp
-                                        <i data-lucide="{{ $icon }}" class="w-12 h-12 text-blue-200 group-hover:text-blue-300 transition-colors"></i>
-                                        <span class="text-[10px] uppercase font-bold text-gray-400 mt-2">{{ $file->extension }}</span>
+                                        <div class="w-16 h-16 bg-blue-100/50 rounded-2xl flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
+                                            <i data-lucide="{{ $icon }}" class="w-8 h-8 text-blue-500"></i>
+                                        </div>
+                                        <span class="text-[9px] uppercase font-black text-gray-400 tracking-widest">{{ $file->extension ?: 'FILE' }}</span>
                                     </div>
                                 @endif
                                 
-                                <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                    <button @click.stop.prevent="openPreviewModal('{{ route('documents.preview', $file->id) }}', '{{ addslashes($file->display_name) }}', '{{ $file->mime_type }}')" class="p-2 bg-white rounded-lg hover:text-blue-600 transition-colors" title="View">
-                                        <i data-lucide="eye" class="w-4 h-4"></i>
+                                <div class="absolute inset-0 bg-gray-900/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2 backdrop-blur-[2px]">
+                                    <button @click.stop.prevent="openPreviewModal('{{ route('documents.preview', $file->id) }}', '{{ addslashes($file->display_name) }}', '{{ $file->mime_type }}')" class="w-10 h-10 bg-white text-gray-700 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-lg flex items-center justify-center" title="Pratinjau">
+                                        <i data-lucide="eye" class="w-5 h-5"></i>
                                     </button>
-                                    <a href="{{ route('documents.download', $file->id) }}" @click.stop class="p-2 bg-white rounded-lg hover:text-green-600 transition-colors" title="Download">
-                                        <i data-lucide="download" class="w-4 h-4"></i>
+                                    <a href="{{ route('documents.download', $file->id) }}" @click.stop class="w-10 h-10 bg-white text-gray-700 rounded-xl hover:bg-green-600 hover:text-white transition-all shadow-lg flex items-center justify-center" title="Unduh">
+                                        <i data-lucide="download" class="w-5 h-5"></i>
                                     </a>
-                                    <button @click.stop.prevent="openMoveModal('file', '{{ $file->id }}')" class="p-2 bg-white rounded-lg hover:text-purple-600 transition-colors" title="Move">
-                                        <i data-lucide="folder-output" class="w-4 h-4"></i>
-                                    </button>
-                                    <button @click.stop.prevent="openShareModal('{{ $file->id }}', '{{ addslashes($file->display_name) }}', 'file')" class="p-2 bg-white rounded-lg hover:text-blue-500 transition-colors" title="Share">
-                                        <i data-lucide="share-2" class="w-4 h-4"></i>
-                                    </button>
-                                    <button @click.stop.prevent="openDeleteModal('file', '{{ addslashes($file->display_name) }}', '{{ route('documents.destroy', $file->id) }}')" class="p-2 bg-white rounded-lg hover:text-red-600 transition-colors" title="Delete">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                    </button>
                                 </div>
                             </div>
-                            <div class="p-3 border-t border-gray-50 flex items-center">
-                                <i data-lucide="file-text" class="w-4 h-4 text-blue-500 mr-2 shrink-0"></i>
-                                <div class="flex-1 min-w-0">
-                                    <h4 class="text-xs font-bold text-gray-800 truncate" title="{{ $file->display_name }}">{{ $file->display_name }}</h4>
+                            
+                            <div class="p-4 bg-white">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+                                    <h4 class="text-xs font-bold text-gray-800 truncate flex-1" title="{{ $file->display_name }}">{{ $file->display_name }}</h4>
+                                </div>
+                                <div class="mt-2 flex items-center justify-between">
+                                    <span class="text-[9px] font-bold text-gray-400 uppercase">{{ $file->size_formatted ?? ($file->size . ' B') }}</span>
+                                    <i data-lucide="more-horizontal" class="w-4 h-4 text-gray-300"></i>
                                 </div>
                             </div>
                         </div>
                     @endforeach
                 </div>
             @else
-                <div class="py-16 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                    <i data-lucide="inbox" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
-                    <p class="text-sm font-bold text-gray-500 tracking-tight">Folder is empty</p>
-                    <p class="text-xs text-gray-400 mt-1">Drop files here or click New UI Upload (Coming next!)</p>
+                <div class="py-24 text-center bg-white rounded-[3rem] border border-dashed border-gray-200 shadow-sm">
+                    <div class="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <i data-lucide="inbox" class="w-10 h-10 text-gray-300"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800">Folder Kosong</h3>
+                    <p class="text-sm text-gray-400 mt-2">Tarik file ke sini atau klik tombol Unggah untuk memulai.</p>
                 </div>
             @endif
         </div>
     </div>
 
-    <!-- Modals (Folder Create/Rename) -->
-    <!-- Create Folder -->
-    <div x-show="showNewFolderModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm" x-cloak>
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" @click.away="showNewFolderModal = false">
-            <div class="px-5 py-4 border-b border-gray-100">
-                <h3 class="text-base font-bold text-gray-800">New Folder</h3>
+    <!-- Modals -->
+    <div x-show="showNewFolderModal || folderToRename" class="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md" x-cloak>
+        <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden" @click.away="showNewFolderModal = false; folderToRename = null">
+            <div class="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="text-lg font-black text-gray-900" x-text="folderToRename ? 'Ubah Nama Folder' : 'Folder Baru'"></h3>
+                <i data-lucide="folder-plus" class="w-6 h-6 text-blue-500"></i>
             </div>
-            <form action="{{ route('web.folders.store') }}" method="POST">
-                @csrf
+            <form :action="folderToRename ? `/folders/${folderToRename}` : '{{ route('web.folders.store') }}'" method="POST">
+                @csrf 
+                <template x-if="folderToRename"><input type="hidden" name="_method" value="PUT"></template>
                 <input type="hidden" name="parent_id" value="{{ $currentFolder->id ?? '' }}">
-                <div class="p-5">
-                    <input type="text" name="name" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required autofocus placeholder="Folder name">
+                <div class="p-8">
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nama Folder</label>
+                    <input type="text" name="name" x-model="folderName" class="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all" required autofocus placeholder="Masukkan nama folder...">
                 </div>
-                <div class="px-5 py-3 bg-gray-50 text-right space-x-2">
-                    <button type="button" @click="showNewFolderModal = false" class="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-200 rounded-lg">Cancel</button>
-                    <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm">Create</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Rename Folder -->
-    <div x-show="folderToRename" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm" x-cloak>
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" @click.away="folderToRename = null">
-            <div class="px-5 py-4 border-b border-gray-100">
-                <h3 class="text-base font-bold text-gray-800">Rename Folder</h3>
-            </div>
-            <form :action="`/folders/${folderToRename}`" method="POST">
-                @csrf @method('PUT')
-                <div class="p-5">
-                    <input type="text" name="name" x-model="folderName" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" required autofocus>
-                </div>
-                <div class="px-5 py-3 bg-gray-50 text-right space-x-2">
-                    <button type="button" @click="folderToRename = null" class="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-200 rounded-lg">Cancel</button>
-                    <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm">Rename</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Move Modal -->
-    <div x-show="showMoveModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm" x-cloak>
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" @click.away="showMoveModal = false">
-            <div class="px-5 py-4 border-b border-gray-100">
-                <h3 class="text-base font-bold text-gray-800">Move <span x-text="moveType" class="capitalize"></span></h3>
-            </div>
-            <form :action="moveTargetUrl" method="POST">
-                @csrf @method('PUT')
-                <div class="p-5">
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Select Destination</label>
-                    <select :name="moveType === 'folder' ? 'parent_id' : 'folder_id'" class="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                        <option value="">My Drive (Root)</option>
-                        @foreach($allFolders as $availableFolder)
-                            <option value="{{ $availableFolder->id }}">{{ $availableFolder->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="px-5 py-3 bg-gray-50 text-right space-x-2">
-                    <button type="button" @click="showMoveModal = false" class="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-200 rounded-lg">Cancel</button>
-                    <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm">Move</button>
+                <div class="px-8 py-6 bg-gray-50/50 flex gap-3">
+                    <button type="button" @click="showNewFolderModal = false; folderToRename = null" class="flex-1 py-3 text-xs font-bold text-gray-500 hover:text-gray-700 transition-all">Batal</button>
+                    <button type="submit" class="flex-1 py-3 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95" x-text="folderToRename ? 'Simpan' : 'Buat Folder'"></button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- Delete Modal -->
-    <div x-show="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm" x-cloak>
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all" @click.away="showDeleteModal = false"
-             x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-             x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
-            <div class="p-6 text-center">
-                <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100 shadow-sm">
-                    <i data-lucide="alert-triangle" class="w-8 h-8 text-red-500"></i>
+    <div x-show="showDeleteModal" class="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-xl" x-cloak>
+        <div class="bg-white rounded-[3rem] shadow-2xl w-full max-w-sm overflow-hidden transform transition-all" @click.away="showDeleteModal = false">
+            <div class="p-10 text-center">
+                <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-100 shadow-inner">
+                    <i data-lucide="trash-2" class="w-10 h-10 text-red-500"></i>
                 </div>
-                <h3 class="text-xl font-bold text-gray-900 mb-2">Delete <span x-text="deleteType" class="capitalize"></span>?</h3>
-                <p class="text-xs text-gray-500 mb-8 leading-relaxed">
-                    Are you sure you want to delete <br><strong x-text="deleteTitle" class="text-gray-800"></strong>?<br>
-                    <span class="text-red-400 font-medium">This action cannot be undone.</span>
+                <h3 class="text-2xl font-black text-gray-900 mb-2">Hapus <span x-text="deleteType"></span>?</h3>
+                <p class="text-sm text-gray-400 mb-10 leading-relaxed px-4">
+                    Apakah Anda yakin ingin menghapus <br><strong x-text="deleteTitle" class="text-gray-900"></strong>?<br>
+                    <span class="text-red-500 font-bold mt-2 block">Tindakan ini tidak dapat dibatalkan.</span>
                 </p>
                 <form :action="deleteFormAction" method="POST">
                     @csrf @method('DELETE')
-                    <div class="flex space-x-3 w-full">
-                        <button type="button" @click="showDeleteModal = false" class="flex-1 py-3 px-4 text-xs font-bold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 hover:text-gray-800 rounded-xl transition-all shadow-sm">Cancel</button>
-                        <button type="submit" class="flex-1 py-3 px-4 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-sm transition-all focus:ring-4 focus:ring-red-500/20 shadow-red-600/20">Delete Forever</button>
+                    <div class="flex gap-4">
+                        <button type="button" @click="showDeleteModal = false" class="flex-1 py-4 text-xs font-bold text-gray-500 hover:text-gray-800 transition-all">Batal</button>
+                        <button type="submit" class="flex-1 py-4 bg-red-600 text-white text-xs font-bold rounded-2xl shadow-xl shadow-red-500/20 hover:bg-red-700 transition-all active:scale-95">Hapus Selamanya</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
+    <!-- Premium Preview Modal -->
+    <div x-show="showPreviewModal" 
+         class="fixed inset-0 z-[300] flex items-center justify-center bg-gray-900/95 backdrop-blur-3xl transition-all duration-500"
+         x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-105" x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-105"
+         x-cloak>
+        
+        <!-- Header Toolbar -->
+        <div class="absolute top-0 left-0 right-0 p-6 flex items-center justify-between z-[310] bg-gradient-to-b from-black/50 to-transparent">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
+                    <i data-lucide="file-text" class="w-6 h-6 text-white" x-show="!previewMimeType.startsWith('image/')"></i>
+                    <i data-lucide="image" class="w-6 h-6 text-white" x-show="previewMimeType.startsWith('image/')"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black text-white" x-text="previewName"></h3>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest" x-text="previewMimeType"></p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <template x-if="previewMimeType.startsWith('image/')">
+                    <div class="flex items-center bg-white/10 backdrop-blur-md rounded-2xl p-1 border border-white/20 mr-4">
+                        <button @click="zoomOut()" class="p-2 text-white hover:bg-white/10 rounded-xl transition-all"><i data-lucide="minus" class="w-4 h-4"></i></button>
+                        <span class="px-4 text-xs font-black text-white w-16 text-center" x-text="zoomLevel + '%'"></span>
+                        <button @click="zoomIn()" class="p-2 text-white hover:bg-white/10 rounded-xl transition-all"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                    </div>
+                </template>
+                
+                <button @click="showPreviewModal = false" class="w-12 h-12 bg-white/10 hover:bg-red-500 text-white rounded-2xl backdrop-blur-md border border-white/20 flex items-center justify-center transition-all active:scale-90">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Preview Area -->
+        <div class="w-full h-full flex items-center justify-center p-12 lg:p-24 overflow-hidden" @click.self="showPreviewModal = false">
+            <template x-if="showPreviewModal">
+                <div class="w-full h-full flex items-center justify-center">
+                    <template x-if="previewMimeType.startsWith('image/')">
+                        <div class="relative group cursor-zoom-out" @click="showPreviewModal = false">
+                            <img :src="previewUrl" 
+                                 :style="`transform: scale(${zoomLevel/100});`"
+                                 class="max-w-full max-h-[75vh] rounded-2xl shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/10 transition-transform duration-300">
+                        </div>
+                    </template>
+
+                    <template x-if="previewMimeType === 'application/pdf'">
+                        <div class="w-full max-w-5xl h-full bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/20">
+                            <iframe :src="previewUrl" class="w-full h-full border-none"></iframe>
+                        </div>
+                    </template>
+
+                    <template x-if="previewMimeType.startsWith('video/')">
+                        <video controls class="max-w-full max-h-[80vh] rounded-[2.5rem] shadow-2xl border border-white/20" :src="previewUrl" autoplay></video>
+                    </template>
+
+                    <template x-if="previewMimeType.startsWith('audio/')">
+                        <div class="bg-white/10 backdrop-blur-2xl p-12 rounded-[3rem] border border-white/20 text-center">
+                            <div class="w-24 h-24 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-8">
+                                <i data-lucide="music" class="w-10 h-10 text-blue-400"></i>
+                            </div>
+                            <audio controls class="w-80" :src="previewUrl"></audio>
+                        </div>
+                    </template>
+
+                    <template x-if="!previewMimeType.startsWith('image/') && previewMimeType !== 'application/pdf' && !previewMimeType.startsWith('video/') && !previewMimeType.startsWith('audio/')">
+                        <div class="bg-white/10 backdrop-blur-2xl p-16 rounded-[3rem] border border-white/20 text-center">
+                            <div class="w-20 h-20 bg-gray-500/20 rounded-3xl flex items-center justify-center mx-auto mb-8">
+                                <i data-lucide="file-warning" class="w-10 h-10 text-gray-400"></i>
+                            </div>
+                            <h3 class="text-xl font-black text-white mb-4">Pratinjau Tidak Tersedia</h3>
+                            <a :href="previewUrl" download class="px-8 py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-xl hover:bg-blue-700 transition-all block">Unduh Sekarang</a>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </div>
+
     <!-- Context Menu -->
     <div x-show="contextMenuOpen" @click.away="contextMenuOpen = false" x-ref="ctxMenu"
-         class="fixed z-[100] w-56 bg-white rounded-xl shadow-2xl border border-gray-100 py-1"
+         class="fixed z-[200] w-64 bg-white rounded-3xl shadow-2xl border border-gray-100 p-2"
          :style="`left: ${contextMenuX}px; top: ${contextMenuY}px;`"
          x-transition.opacity.duration.150ms
          x-cloak>
          
-         <!-- Background specific options -->
          <template x-if="contextMenuType === 'bg'">
-            <div>
-                <button @click="showNewFolderModal = true; folderToRename = null; folderName = ''; contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
-                    <i data-lucide="folder-plus" class="w-4 h-4 mr-3 text-gray-400"></i> New Folder
-                </button>
-                <div class="h-px bg-gray-100 my-1 w-full"></div>
-                <button @click="contextMenuOpen = false; document.getElementById('hiddenFileInput').click()" class="w-full text-left px-4 py-2.5 text-xs text-blue-700 hover:bg-blue-50 flex items-center font-bold">
-                    <i data-lucide="upload-cloud" class="w-4 h-4 mr-3 text-blue-500"></i> Upload File
-                </button>
-            </div>
+            <button @click="showNewFolderModal = true; contextMenuOpen = false" class="w-full text-left px-5 py-4 text-xs font-black text-gray-700 hover:bg-blue-600 hover:text-white rounded-2xl flex items-center transition-all">
+                <i data-lucide="folder-plus" class="w-4 h-4 mr-3"></i> Folder Baru
+            </button>
          </template>
 
-         <!-- Folder specific options -->
          <template x-if="contextMenuType === 'folder'">
-            <div>
-                <button @click="openRenameModal(contextMenuFolder.id, contextMenuFolder.name); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
-                    <i data-lucide="edit-2" class="w-4 h-4 mr-3 text-gray-400"></i> Rename
+            <div class="space-y-1">
+                <button @click="openRenameModal(contextMenuFolder.id, contextMenuFolder.name); contextMenuOpen = false" class="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 hover:bg-blue-50 rounded-2xl flex items-center transition-all">
+                    <i data-lucide="edit-3" class="w-4 h-4 mr-3 text-amber-500"></i> Ubah Nama
                 </button>
-                <button @click="openMoveModal('folder', contextMenuFolder.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
-                    <i data-lucide="folder-output" class="w-4 h-4 mr-3 text-gray-400"></i> Move To
-                </button>
-                <button @click="openShareModal(contextMenuFolder.id, contextMenuFolder.name, 'folder'); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
-                    <i data-lucide="share-2" class="w-4 h-4 mr-3 text-indigo-400"></i> Share Folder
-                </button>
-                <div class="h-px bg-gray-100 my-1 w-full"></div>
-                <button @click="openDeleteModal('folder', contextMenuFolder.name, '{{ url('folders') }}/' + contextMenuFolder.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 flex items-center font-medium">
-                    <i data-lucide="trash-2" class="w-4 h-4 mr-3 text-red-500"></i> Delete Folder
+                <div class="h-px bg-gray-100 my-1 mx-2"></div>
+                <button @click="openDeleteModal('folder', contextMenuFolder.name, '{{ url('folders') }}/' + contextMenuFolder.id); contextMenuOpen = false" class="w-full text-left px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 rounded-2xl flex items-center transition-all">
+                    <i data-lucide="trash-2" class="w-4 h-4 mr-3"></i> Hapus Folder
                 </button>
             </div>
          </template>
 
-         <!-- File specific options -->
          <template x-if="contextMenuType === 'file'">
-            <div>
-                <button @click="openPreviewModal(`{{ url('documents') }}/${contextMenuFile.id}/preview`, contextMenuFile.display_name, contextMenuFile.mime_type); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
-                    <i data-lucide="eye" class="w-4 h-4 mr-3 text-blue-400"></i> Preview
+            <div class="space-y-1">
+                <button @click="openPreviewModal(`{{ url('documents') }}/${contextMenuFile.id}/preview`, contextMenuFile.name, contextMenuFile.mime_type); contextMenuOpen = false" class="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 hover:bg-blue-50 rounded-2xl flex items-center transition-all">
+                    <i data-lucide="eye" class="w-4 h-4 mr-3 text-blue-500"></i> Pratinjau
                 </button>
-                <a :href="`{{ url('documents') }}/${contextMenuFile.id}/download`" @click="contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
-                    <i data-lucide="download-cloud" class="w-4 h-4 mr-3 text-green-400"></i> Download
+                <a :href="`{{ url('documents') }}/${contextMenuFile.id}/download`" class="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 hover:bg-blue-50 rounded-2xl flex items-center transition-all">
+                    <i data-lucide="download-cloud" class="w-4 h-4 mr-3 text-green-500"></i> Unduh
                 </a>
-                <div class="h-px bg-gray-100 my-1 w-full"></div>
-                <button @click="openShareModal(contextMenuFile.id, contextMenuFile.display_name, 'file'); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
-                    <i data-lucide="share-2" class="w-4 h-4 mr-3 text-indigo-400"></i> Share
-                </button>
-                <button @click="openMoveModal('file', contextMenuFile.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 flex items-center">
-                    <i data-lucide="folder-output" class="w-4 h-4 mr-3 text-gray-400"></i> Move To
-                </button>
-                <div class="h-px bg-gray-100 my-1 w-full"></div>
-                <button @click="openDeleteModal('file', contextMenuFile.display_name, '{{ url('documents') }}/' + contextMenuFile.id); contextMenuOpen = false" class="w-full text-left px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 flex items-center font-medium">
-                    <i data-lucide="trash-2" class="w-4 h-4 mr-3 text-red-500"></i> Delete File
+                <div class="h-px bg-gray-100 my-1 mx-2"></div>
+                <button @click="openDeleteModal('file', contextMenuFile.name, '{{ url('documents') }}/' + contextMenuFile.id); contextMenuOpen = false" class="w-full text-left px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 rounded-2xl flex items-center transition-all">
+                    <i data-lucide="trash-2" class="w-4 h-4 mr-3"></i> Hapus File
                 </button>
             </div>
          </template>
     </div>
 
     @include('share.modal')
-
-    <!-- Premium Preview Modal (Redesigned) -->
-    <div x-show="showPreviewModal" 
-         class="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-2xl transition-all duration-300"
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="opacity-0 scale-95"
-         x-transition:enter-end="opacity-100 scale-100"
-         x-transition:leave="transition ease-in duration-200"
-         x-transition:leave-start="opacity-100 scale-100"
-         x-transition:leave-end="opacity-0 scale-95"
-         x-cloak>
-        
-        <!-- Floating Glass Toolbar -->
-        <div class="absolute top-6 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-4 px-6 py-3 bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl transition-all group">
-            <div class="flex items-center gap-3 pr-4 border-r border-white/10">
-                <div class="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                    <i data-lucide="eye" class="w-4 h-4 text-blue-400"></i>
-                </div>
-                <div class="max-w-[200px] truncate">
-                    <h3 class="text-xs font-bold text-white truncate" x-text="previewName"></h3>
-                    <p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest" x-text="previewMimeType"></p>
-                </div>
-            </div>
-
-            <!-- Controls -->
-            <template x-if="previewMimeType.startsWith('image/')">
-                <div class="flex items-center gap-1">
-                    <button @click="zoomOut()" class="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-xl transition-all" title="Zoom Out">
-                        <i data-lucide="zoom-out" class="w-4 h-4"></i>
-                    </button>
-                    <span class="text-[10px] font-mono font-bold text-blue-400 w-12 text-center" x-text="zoomLevel + '%'"></span>
-                    <button @click="zoomIn()" class="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-xl transition-all" title="Zoom In">
-                        <i data-lucide="zoom-in" class="w-4 h-4"></i>
-                    </button>
-                    <div class="w-px h-4 bg-white/10 mx-1"></div>
-                    <button @click="toggleMaximize()" class="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-xl transition-all" :title="isMaximized ? 'Fit to Screen' : 'Actual Size'">
-                        <i :data-lucide="isMaximized ? 'minimize-2' : 'maximize-2'" class="w-4 h-4"></i>
-                    </button>
-                </div>
-            </template>
-
-            <div class="w-px h-4 bg-white/10 mx-1"></div>
-            
-            <a :href="previewUrl" download class="p-2 text-gray-300 hover:text-green-400 hover:bg-white/10 rounded-xl transition-all" title="Download">
-                <i data-lucide="download" class="w-4 h-4"></i>
-            </a>
-
-            <button @click="showPreviewModal = false" class="p-2 text-gray-300 hover:text-red-400 hover:bg-white/10 rounded-xl transition-all">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-        </div>
-
-        <!-- Main Content Area -->
-        <div class="w-full h-full flex items-center justify-center overflow-hidden cursor-default" @click.away="showPreviewModal = false">
-            <template x-if="showPreviewModal">
-                <div class="w-full h-full flex items-center justify-center relative">
-                    <!-- Image Preview -->
-                    <template x-if="previewMimeType.startsWith('image/')">
-                        <div class="w-full h-full overflow-auto flex items-center justify-center p-8 scrollbar-hide">
-                            <img :src="previewUrl" 
-                                 :style="isMaximized ? `width: auto; max-width: none; transform: scale(${zoomLevel/100}); cursor: zoom-out;` : 'max-width: 90%; max-height: 90%; object-fit: contain; cursor: zoom-in;'"
-                                 class="transition-all duration-300 shadow-[0_0_100px_rgba(0,0,0,0.5)] rounded-lg bg-gray-900/50"
-                                 @click="toggleMaximize()"
-                                 @load="$el.classList.remove('opacity-0')"
-                                 :class="isMaximized ? '' : 'max-w-full max-h-full'">
-                        </div>
-                    </template>
-
-                    <!-- Non-Image Preview (PDF, etc) -->
-                    <template x-if="!previewMimeType.startsWith('image/')">
-                        <div class="w-full max-w-6xl h-[85vh] bg-white rounded-3xl overflow-hidden shadow-2xl">
-                            <iframe :src="previewUrl" class="w-full h-full border-none" @load="$el.classList.remove('opacity-0')"></iframe>
-                        </div>
-                    </template>
-                    
-                    <!-- Fallback Loading -->
-                    <div class="absolute inset-0 flex items-center justify-center -z-10 bg-black/20">
-                        <div class="flex flex-col items-center gap-3">
-                            <div class="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-                            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Loading...</span>
-                        </div>
-                    </div>
-                </div>
-            </template>
-        </div>
-    </div>
-
-    </div>
 </div>
 @endsection

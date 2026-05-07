@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use App\Models\Setting;
+
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -32,7 +34,8 @@ class AppServiceProvider extends ServiceProvider
             }
             $view->with([
                 'menus' => $menus,
-                'headerMenus' => $headerMenus
+                'headerMenus' => $headerMenus,
+                'companySetting' => Setting::firstOrCreate([])
             ]);
         });
     }

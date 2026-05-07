@@ -13,27 +13,20 @@
             
             <div class="relative z-10 flex flex-col h-full justify-between">
                 <div>
-                    @php
-                        $hour = date('H');
-                        $greeting = 'Good Morning';
-                        if ($hour >= 12 && $hour < 17) $greeting = 'Good Afternoon';
-                        if ($hour >= 17 || $hour < 5) $greeting = 'Good Evening';
-                    @endphp
-                    <p class="text-blue-100 font-bold uppercase tracking-[0.2em] text-[10px] mb-2 opacity-80">{{ $greeting }}</p>
                     <h1 class="text-3xl md:text-4xl font-extrabold text-white mb-4">
-                        Welcome back, <br class="md:hidden"> {{ explode(' ', auth()->user()->name)[0] }}!
+                        Selamat datang kembali, <br class="md:hidden"> {{ explode(' ', auth()->user()->name)[0] }}!
                     </h1>
                     <p class="text-blue-100/70 text-sm max-w-md leading-relaxed">
-                        Manage your documents seamlessly. Your workspace is optimized and ready for today's tasks.
+                        Kelola dokumen Anda dengan lancar. Ruang kerja Anda telah dioptimalkan dan siap untuk tugas hari ini.
                     </p>
                 </div>
                 
                 <div class="mt-8 flex gap-3">
                     <a href="{{ route('drive.index') }}" class="px-6 py-3 bg-white text-blue-600 font-bold text-xs rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-300">
-                        Browse My Drive
+                        Buka Drive Saya
                     </a>
                     <button onclick="document.getElementById('hiddenFileInputMain').click()" class="px-6 py-3 bg-blue-500/30 backdrop-blur-md text-white border border-white/20 font-bold text-xs rounded-2xl hover:bg-white/20 transition-all duration-300">
-                        Quick Upload
+                        Unggah Cepat
                     </button>
                     <input type="file" id="hiddenFileInputMain" class="hidden" onchange="window.location='{{ route('drive.index') }}'">
                 </div>
@@ -44,7 +37,7 @@
         <div class="bg-white rounded-[2.5rem] p-8 shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col justify-between">
             <div>
                 <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-sm font-bold text-gray-900">Storage Usage</h3>
+                    <h3 class="text-sm font-bold text-gray-900">Penggunaan Penyimpanan</h3>
                     <div class="p-2 bg-gray-50 rounded-xl">
                         <i data-lucide="database" class="w-4 h-4 text-gray-400"></i>
                     </div>
@@ -53,7 +46,7 @@
                 <div class="relative pt-2">
                     <div class="flex items-end justify-between mb-2">
                         <span class="text-3xl font-black text-gray-900">{{ $storageUsedFormatted }}</span>
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest pb-1">of {{ $storageQuotaFormatted }}</span>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest pb-1">dari {{ $storageQuotaFormatted }}</span>
                     </div>
                     
                     <div class="w-full bg-gray-100 rounded-full h-3 mb-2 overflow-hidden overflow-hidden p-[2px]">
@@ -66,7 +59,7 @@
                     </div>
                     
                     <div class="flex items-center justify-between">
-                        <span class="text-[10px] font-bold text-gray-500">{{ $storagePercentage }}% Used</span>
+                        <span class="text-[10px] font-bold text-gray-500">{{ $storagePercentage }}% Terpakai</span>
                         <span class="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer">Upgrade Plan</span>
                     </div>
                 </div>
@@ -74,7 +67,7 @@
 
             <div class="mt-8 pt-6 border-t border-gray-50 space-y-3">
                 <div class="flex items-center justify-between text-xs font-medium">
-                    <span class="text-gray-500">Your current role</span>
+                    <span class="text-gray-500">Peran Anda</span>
                     <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full font-bold capitalize">{{ auth()->user()->role->name }}</span>
                 </div>
             </div>
@@ -90,8 +83,8 @@
                     <i data-lucide="file-text" class="w-6 h-6"></i>
                 </div>
                 <div>
-                    <h4 class="text-sm font-bold text-gray-900">My Documents</h4>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{{ $fileCount }} Files • {{ $folderCount }} Folders</p>
+                    <h4 class="text-sm font-bold text-gray-900">Dokumen Saya</h4>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{{ $fileCount }} File • {{ $folderCount }} Folder</p>
                 </div>
                 <div class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
                     <i data-lucide="arrow-right" class="w-4 h-4 text-blue-600"></i>
@@ -106,8 +99,8 @@
                     <i data-lucide="users" class="w-6 h-6"></i>
                 </div>
                 <div>
-                    <h4 class="text-sm font-bold text-gray-900">Shared Items</h4>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{{ $sharedCount }} Shared With Me</p>
+                    <h4 class="text-sm font-bold text-gray-900">Dibagikan</h4>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{{ $sharedCount }} File Dibagikan</p>
                 </div>
                 <div class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
                     <i data-lucide="arrow-right" class="w-4 h-4 text-indigo-600"></i>
@@ -123,8 +116,8 @@
                     <i data-lucide="layers" class="w-6 h-6"></i>
                 </div>
                 <div>
-                    <h4 class="text-sm font-bold text-gray-900">Categories</h4>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{{ $catCount }} Active</p>
+                    <h4 class="text-sm font-bold text-gray-900">Kategori</h4>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{{ $catCount }} Aktif</p>
                 </div>
                 <div class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
                     <i data-lucide="arrow-right" class="w-4 h-4 text-amber-600"></i>
@@ -140,7 +133,7 @@
         <div class="flex items-center justify-between">
             <h3 class="text-sm font-black text-gray-900 flex items-center gap-2">
                 <span class="w-1 h-4 bg-amber-500 rounded-full"></span>
-                Recent Folders
+                Folder Terbaru
             </h3>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -150,7 +143,7 @@
                         <i data-lucide="folder" class="w-5 h-5"></i>
                     </div>
                     <h4 class="text-[11px] font-black text-gray-900 truncate group-hover:text-amber-600">{{ $folder->name }}</h4>
-                    <p class="text-[9px] text-gray-400 font-bold mt-0.5 uppercase tracking-tighter">{{ $folder->files_count ?? '0' }} Documents</p>
+                    <p class="text-[9px] text-gray-400 font-bold mt-0.5 uppercase tracking-tighter">{{ $folder->files_count ?? '0' }} Dokumen</p>
                 </a>
             @endforeach
         </div>
@@ -162,10 +155,10 @@
         <div class="px-8 py-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
             <h3 class="text-sm font-black text-gray-900 flex items-center gap-2">
                 <span class="w-1 h-4 bg-blue-600 rounded-full"></span>
-                Recent Documents
+                Dokumen Terbaru
             </h3>
             <a href="{{ route('drive.index') }}" class="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline flex items-center gap-1">
-                Explore Full Drive <i data-lucide="move-right" class="w-3 h-3"></i>
+                Lihat Semua Drive <i data-lucide="move-right" class="w-3 h-3"></i>
             </a>
         </div>
         
@@ -173,11 +166,11 @@
             <table class="min-w-full">
                 <thead>
                     <tr class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
-                        <th class="px-6 py-4 text-left">Document Name</th>
+                        <th class="px-6 py-4 text-left">Nama Dokumen</th>
                         <th class="px-6 py-4 text-left">Format</th>
-                        <th class="px-6 py-4 text-left">Size</th>
-                        <th class="px-6 py-4 text-left">Upload Date</th>
-                        <th class="px-6 py-4 text-left">Action</th>
+                        <th class="px-6 py-4 text-left">Ukuran</th>
+                        <th class="px-6 py-4 text-left">Tanggal Unggah</th>
+                        <th class="px-6 py-4 text-left">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
@@ -209,7 +202,7 @@
                                 {{ $file->size }} B
                             </td>
                             <td class="px-6 py-4 text-[10px] font-medium text-gray-400">
-                                {{ $file->created_at->format('M d, Y') }}
+                                {{ $file->created_at->translatedFormat('d M Y') }}
                                 <span class="block text-[8px] opacity-70">{{ $file->created_at->diffForHumans() }}</span>
                             </td>
                             <td class="px-6 py-4">

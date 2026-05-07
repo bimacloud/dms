@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ config('app.name', 'Modern DMS') }}</title>
+    <title>{{ $companySetting->company_name ?? config('app.name', 'Modern DMS') }}</title>
     <!-- Tailwind CSS 4 CDN -->
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <!-- Alpine.js -->
@@ -17,6 +17,17 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
         
+        /* Premium CSS Mask Logo - Zero Flash */
+        .logo-mask-container {
+            background-color: white;
+            mask-size: contain;
+            mask-repeat: no-repeat;
+            mask-position: center;
+            -webkit-mask-size: contain;
+            -webkit-mask-repeat: no-repeat;
+            -webkit-mask-position: center;
+        }
+
         .active-menu-glow {
             position: relative;
         }
@@ -58,14 +69,20 @@
              x-transition:leave-end="-translate-x-full"
              class="relative flex flex-col w-full max-w-xs h-full bg-gray-900 shadow-2xl">
             
-            <div class="px-6 py-5 border-b border-gray-800 flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                        <i data-lucide="folder-key" class="w-5 h-5 text-white"></i>
-                    </div>
-                    <span class="text-xl font-bold text-white tracking-tight">DMS App</span>
+            <div class="px-6 py-8 border-b border-gray-800 flex flex-col items-center relative">
+                <div class="flex items-center justify-center w-full">
+                    @if($companySetting->company_logo)
+                        <div class="h-14 w-48 logo-mask-container" 
+                             style="mask-image: url('{{ asset('storage/' . $companySetting->company_logo) }}'); -webkit-mask-image: url('{{ asset('storage/' . $companySetting->company_logo) }}');">
+                        </div>
+                    @else
+                        <div class="h-14 w-auto bg-blue-600 px-4 py-2 rounded-xl flex items-center justify-center overflow-hidden">
+                            <i data-lucide="folder-key" class="w-8 h-8 text-white mr-3"></i>
+                            <span class="text-xl font-bold text-white tracking-tight">DMS App</span>
+                        </div>
+                    @endif
                 </div>
-                <button @click="mobileSidebarOpen = false" class="p-2 -mr-2 text-gray-400 hover:text-white transition-colors">
+                <button @click="mobileSidebarOpen = false" class="absolute top-4 right-4 p-2 text-gray-400 hover:text-white transition-colors">
                     <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
             </div>
@@ -90,15 +107,27 @@
 
     <!-- Desktop Sidebar -->
     <div :class="sidebarOpen ? 'w-64' : 'w-20'" class="hidden lg:flex flex-col fixed inset-y-0 bg-[#0f172a] transition-all duration-300 z-30 overflow-hidden border-r border-slate-800 shadow-[20px_0_50px_rgba(0,0,0,0.1)]">
-        <div class="p-6 border-b border-slate-800/50 flex items-center justify-between h-16 bg-[#0f172a]/50 backdrop-blur-xl sticky top-0 z-10">
-            <div class="flex items-center space-x-2" x-show="sidebarOpen" x-transition>
-                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
-                    <i data-lucide="folder-key" class="w-5 h-5 text-white"></i>
-                </div>
-                <span class="text-xl font-bold text-white tracking-tight" x-cloak>DMS App</span>
+        <div class="border-b border-slate-800/50 flex flex-col items-center justify-center relative bg-[#0f172a]/50 backdrop-blur-xl sticky top-0 z-10 transition-all" :class="sidebarOpen ? 'p-8 h-32' : 'p-4 h-16'">
+            <!-- Logo Container -->
+            <div class="flex items-center justify-center overflow-hidden transition-all duration-300 w-full" :class="sidebarOpen ? 'h-16' : 'h-8'">
+                @if($companySetting->company_logo)
+                    <div class="h-full w-full logo-mask-container transition-all" 
+                         :class="!sidebarOpen ? 'scale-75' : ''"
+                         style="mask-image: url('{{ asset('storage/' . $companySetting->company_logo) }}'); -webkit-mask-image: url('{{ asset('storage/' . $companySetting->company_logo) }}');">
+                    </div>
+                @else
+                    <div class="h-full w-auto bg-blue-600 px-3 py-1 rounded-lg flex items-center justify-center">
+                        <i data-lucide="folder-key" class="text-white transition-all" :class="sidebarOpen ? 'w-8 h-8 mr-2' : 'w-6 h-6'"></i>
+                        <span class="text-xl font-bold text-white tracking-tight" x-show="sidebarOpen" x-cloak>DMS App</span>
+                    </div>
+                @endif
             </div>
-            <button @click="sidebarOpen = !sidebarOpen" class="text-gray-400 hover:text-white transition-all transform hover:scale-110" :class="!sidebarOpen ? 'mx-auto' : ''">
-                <i :data-lucide="sidebarOpen ? 'chevron-left' : 'menu'" class="w-6 h-6"></i>
+            
+            <!-- Toggle Button -->
+            <button @click="sidebarOpen = !sidebarOpen" 
+                    class="absolute text-gray-400 hover:text-white transition-all transform hover:scale-110 z-20 bg-slate-800/50 p-1.5 rounded-lg border border-slate-700/50" 
+                    :class="sidebarOpen ? 'top-3 right-3' : 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'">
+                <i :data-lucide="sidebarOpen ? 'chevron-left' : 'menu'" class="w-4 h-4"></i>
             </button>
         </div>
         <nav class="flex-1 px-3 py-6 space-y-2 overflow-y-auto custom-scrollbar">

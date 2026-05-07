@@ -76,47 +76,6 @@
             line-height: 1.6;
         }
 
-        .services {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .service-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 0;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .service-item:last-child {
-            border-bottom: none;
-        }
-
-        .service-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #1e40af, #3b82f6);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 16px;
-        }
-
-        .service-text h4 {
-            font-size: 16px;
-            font-weight: 500;
-            color: #1e293b;
-            margin-bottom: 2px;
-        }
-
-        .service-text p {
-            font-size: 14px;
-            color: #64748b;
-        }
 
         /* Right - Login Form */
         .login-section {
@@ -253,9 +212,6 @@
                 font-size: 28px;
             }
 
-            .services {
-                display: none;
-            }
         }
     </style>
 </head>
@@ -266,7 +222,7 @@
         <div class="company-info">
             <a href="/" class="logo">
                 @if($setting && $setting->company_logo)
-                    <img src="{{ asset('storage/' . $setting->company_logo) }}" alt="Logo" style="height: 40px; width: auto; max-width: 150px; object-fit: contain;">
+                    <img src="{{ asset('storage/' . $setting->company_logo) }}" alt="Logo" style="height: 200px; width: auto; max-width: 250px; object-fit: contain;">
                 @else
                     <span>🌐</span>
                     {{ $shortName }}
@@ -277,29 +233,6 @@
                 {!! nl2br(e($setting->company_subtitle ?? "Internet Service Provider & Pengembangan Aplikasi\nTeknologi untuk masa depan bisnis Indonesia")) !!}
             </p>
 
-            <div class="services">
-                <div class="service-item">
-                    <div class="service-icon">🌐</div>
-                    <div class="service-text">
-                        <h4>ISP Enterprise</h4>
-                        <p>Koneksi dedicated 99.9% uptime</p>
-                    </div>
-                </div>
-                <div class="service-item">
-                    <div class="service-icon">💻</div>
-                    <div class="service-text">
-                        <h4>Aplikasi Custom</h4>
-                        <p>Web, mobile, enterprise solution</p>
-                    </div>
-                </div>
-                <div class="service-item">
-                    <div class="service-icon">🔧</div>
-                    <div class="service-text">
-                        <h4>Infrastruktur IT</h4>
-                        <p>Server, network, cloud lokal</p>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- Right - Login Form -->
