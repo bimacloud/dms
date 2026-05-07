@@ -48,13 +48,30 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+        }
+
+        .static-logo {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            display: flex;
+            align-items: center;
+        }
+
+        .static-logo img {
+            height: 70px;
+            width: auto;
+            object-fit: contain;
         }
 
         .logo {
             font-size: 28px;
             font-weight: 600;
             color: #1e40af;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -62,7 +79,7 @@
         }
 
         .company-title {
-            font-size: 36px;
+            font-size: 32px;
             font-weight: 600;
             color: #1e293b;
             margin-bottom: 12px;
@@ -70,10 +87,11 @@
         }
 
         .company-subtitle {
-            font-size: 18px;
+            font-size: 16px;
             color: #64748b;
             margin-bottom: 30px;
             line-height: 1.6;
+            max-width: 500px;
         }
 
 
@@ -199,7 +217,16 @@
             }
 
             .company-info {
-                padding: 40px 30px;
+                padding: 60px 30px 40px;
+            }
+
+            .static-logo {
+                top: 20px;
+                left: 20px;
+            }
+
+            .static-logo img {
+                height: 30px;
             }
 
             .login-section {
@@ -209,9 +236,11 @@
 
         @media (max-width: 480px) {
             .company-title {
-                font-size: 28px;
+                font-size: 26px;
             }
-
+            .logo img {
+                height: 150px !important;
+            }
         }
     </style>
 </head>
@@ -220,14 +249,22 @@
     <div class="main-container">
         <!-- Left - Company Info -->
         <div class="company-info">
+            <!-- Static Logo (Top Left) -->
+            <div class="static-logo">
+                <img src="{{ asset('assets/img/logo-statis.png') }}" alt="DMS Logo">
+            </div>
+
+            <!-- Centered Main Logo -->
             <a href="/" class="logo">
                 @if($setting && $setting->company_logo)
-                    <img src="{{ asset('storage/' . $setting->company_logo) }}" alt="Logo" style="height: 200px; width: auto; max-width: 250px; object-fit: contain;">
+                    <img src="{{ asset('storage/' . $setting->company_logo) }}" alt="Logo" style="height: 180px; width: auto; max-width: 280px; object-fit: contain;">
                 @else
-                    <span>🌐</span>
-                    {{ $shortName }}
+                    <div style="width: 80px; height: 80px; background: #eff6ff; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+                        <span style="font-size: 40px;">🌐</span>
+                    </div>
                 @endif
             </a>
+
             <h1 class="company-title">{{ $setting->company_name ?? 'PT. Puskomedia Indonesia Kreatif' }}</h1>
             <p class="company-subtitle">
                 {!! nl2br(e($setting->company_subtitle ?? "Internet Service Provider & Pengembangan Aplikasi\nTeknologi untuk masa depan bisnis Indonesia")) !!}
