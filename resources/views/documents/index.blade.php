@@ -22,6 +22,79 @@
     contextMenuOpen: false,
     contextMenuX: 0,
     contextMenuY: 0,
+    search: {{ Js::from(request('search')) }} || '',
+    category_id: {{ Js::from(request('category_id')) }} || '',
+    isLoading: false,
+    debounceTimer: null,
+    init() {
+        this.$watch('search', value => {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = setTimeout(() => {
+                this.submitFilters();
+            }, 300);
+        });
+        this.$watch('category_id', () => {
+            this.submitFilters();
+        });
+    },
+    submitFilters() {
+        clearTimeout(this.debounceTimer);
+        const url = new URL(window.location.href);
+        const cleanSearch = this.search ? this.search.trim() : '';
+        if (cleanSearch !== '') {
+            url.searchParams.set('search', cleanSearch);
+        } else {
+            url.searchParams.delete('search');
+        }
+        if (this.category_id !== '') {
+            url.searchParams.set('category_id', this.category_id);
+        } else {
+            url.searchParams.delete('category_id');
+        }
+        url.searchParams.delete('page');
+        this.loadUrl(url.toString());
+    },
+    loadUrl(url) {
+        this.isLoading = true;
+        window.history.pushState({}, '', url);
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            const newGrid = doc.querySelector('.grid-cols-2');
+            const currentGrid = this.$el.querySelector('.grid-cols-2');
+            if (newGrid && currentGrid) {
+                currentGrid.innerHTML = newGrid.innerHTML;
+            }
+            
+            const newPagination = doc.getElementById('pagination-container');
+            const currentPagination = this.$el.querySelector('#pagination-container');
+            if (currentPagination && newPagination) {
+                currentPagination.innerHTML = newPagination.innerHTML;
+            }
+            
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+        })
+        .catch(err => console.error(err))
+        .finally(() => {
+            this.isLoading = false;
+        });
+    },
+    handlePaginationClick(e) {
+        const link = e.target.closest('a');
+        if (link && link.href) {
+            e.preventDefault();
+            this.loadUrl(link.href);
+        }
+    },
 
     zoomIn() { if (this.zoomLevel < 300) this.zoomLevel += 25 },
     zoomOut() { if (this.zoomLevel > 25) this.zoomLevel -= 25 },
@@ -194,18 +267,24 @@ class="relative min-h-screen max-w-7xl mx-auto">
 
     <!-- Filters -->
     <div class="flex gap-4 mb-8">
-        <form action="{{ route('documents.index') }}" method="GET" class="flex flex-1 gap-3 max-w-2xl bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+        <form @submit.prevent="submitFilters()" class="flex flex-1 gap-3 max-w-2xl bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
             <div class="relative flex-1">
-                <i data-lucide="search" class="absolute left-4 top-3 w-4 h-4 text-gray-400"></i>
-                <input type="text" name="search" value="{{ request('search') }}" 
-                    class="w-full pl-10 pr-4 py-2.5 rounded-xl border-none bg-gray-50/50 text-xs font-bold focus:bg-white focus:ring-0 outline-none" 
+                <i x-show="!isLoading" data-lucide="search" class="absolute left-4 top-3 w-4 h-4 text-gray-400"></i>
+                <i x-show="isLoading" data-lucide="loader-2" class="absolute left-4 top-3 w-4 h-4 animate-spin text-blue-500" x-cloak></i>
+                <input type="text" x-model="search" 
+                    class="w-full pl-10 pr-10 py-2.5 rounded-xl border-none bg-gray-50/50 text-xs font-bold focus:bg-white focus:ring-0 outline-none" 
                     placeholder="Cari dokumen Anda...">
+                <button x-show="search && search.trim() !== ''" @click="search = ''; submitFilters();" 
+                    class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                    type="button">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
             </div>
-            <select name="category_id" onchange="this.form.submit()" 
+            <select x-model="category_id" 
                 class="w-44 px-4 py-2.5 rounded-xl border-none bg-gray-50/50 text-xs font-bold outline-none cursor-pointer focus:bg-white transition-all appearance-none">
                 <option value="">Semua Kategori</option>
                 @foreach ($categories as $cat)
-                    <option value="{{ $cat->id }}" {{ request('category_id') == $cat->id ? 'selected' : '' }}>{{ $cat->name }}</option>
+                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                 @endforeach
             </select>
             @if(request('category_id') || request('search'))
@@ -218,7 +297,7 @@ class="relative min-h-screen max-w-7xl mx-auto">
     </div>
 
     <!-- Document Grid -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 transition-opacity duration-200" :class="isLoading ? 'opacity-50 pointer-events-none' : ''">
         @forelse ($files as $file)
             <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden group hover:border-blue-300 hover:shadow-2xl hover:shadow-blue-500/10 transition-all flex flex-col cursor-pointer relative"
                  @click="openPreviewModal('{{ route('documents.preview', $file->id) }}', '{{ addslashes($file->display_name) }}', '{{ $file->mime_type }}')">
@@ -370,8 +449,12 @@ class="relative min-h-screen max-w-7xl mx-auto">
         </div>
     </div>
 
-    <div class="mt-12 mb-8">
-        {{ $files->links() }}
+    <div id="pagination-container" @click="handlePaginationClick($event)">
+        @if($files->hasPages())
+            <div class="mt-12 mb-8">
+                {{ $files->links() }}
+            </div>
+        @endif
     </div>
 
     <!-- Drag Overlay -->

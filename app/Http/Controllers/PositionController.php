@@ -16,7 +16,7 @@ class PositionController extends Controller
             $query->where('name', 'like', "%{$search}%");
         }
 
-        $positions = $query->latest()->paginate(10);
+        $positions = $query->latest()->paginate(10)->withQueryString();
         return view('positions.index', compact('positions'));
     }
 

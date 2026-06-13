@@ -48,7 +48,7 @@ class DocumentController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
-        $files = $query->paginate(12);
+        $files = $query->paginate(12)->withQueryString();
         $categories = Category::all();
         $users = \App\Models\User::where('id', '!=', auth()->id())->get();
 

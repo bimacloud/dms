@@ -7,11 +7,69 @@
     showForm: false, 
     editMode: false, 
     user: { id: '', name: '', email: '', role_id: '', position_id: '', disk_quota_value: '', disk_quota_unit: 'GB' },
-    search: {{ Js::from(request('search')) }},
+    search: {{ Js::from(request('search')) }} || '',
+    isLoading: false,
+    debounceTimer: null,
+    init() {
+        this.$watch('search', value => {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = setTimeout(() => {
+                this.submitSearch();
+            }, 300);
+        });
+    },
     submitSearch() {
+        clearTimeout(this.debounceTimer);
         const url = new URL(window.location.href);
-        url.searchParams.set('search', this.search);
-        window.location.href = url.toString();
+        const cleanSearch = this.search ? this.search.trim() : '';
+        if (cleanSearch !== '') {
+            url.searchParams.set('search', cleanSearch);
+        } else {
+            url.searchParams.delete('search');
+        }
+        url.searchParams.delete('page');
+        this.loadUrl(url.toString());
+    },
+    loadUrl(url) {
+        this.isLoading = true;
+        window.history.pushState({}, '', url);
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            const newTableBody = doc.querySelector('tbody');
+            const currentTableBody = this.$el.querySelector('tbody');
+            if (newTableBody && currentTableBody) {
+                currentTableBody.innerHTML = newTableBody.innerHTML;
+            }
+            
+            const newPagination = doc.getElementById('pagination-container');
+            const currentPagination = this.$el.querySelector('#pagination-container');
+            if (currentPagination && newPagination) {
+                currentPagination.innerHTML = newPagination.innerHTML;
+            }
+            
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+        })
+        .catch(err => console.error(err))
+        .finally(() => {
+            this.isLoading = false;
+        });
+    },
+    handlePaginationClick(e) {
+        const link = e.target.closest('a');
+        if (link && link.href) {
+            e.preventDefault();
+            this.loadUrl(link.href);
+        }
     },
     resetForm() {
         this.user = { id: '', name: '', email: '', role_id: '', position_id: '', disk_quota_value: '', disk_quota_unit: 'GB' };
@@ -159,11 +217,17 @@
         <div class="p-6 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="relative flex-1 max-w-md">
                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-                    <i data-lucide="search" class="w-4 h-4"></i>
+                    <i x-show="!isLoading" data-lucide="search" class="w-4 h-4"></i>
+                    <i x-show="isLoading" data-lucide="loader-2" class="w-4 h-4 animate-spin text-blue-500" x-cloak></i>
                 </div>
                 <input type="text" x-model="search" @keyup.enter="submitSearch()"
-                    class="block w-full pl-11 pr-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/50 text-sm focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none" 
+                    class="block w-full pl-11 pr-10 py-3 border border-gray-100 rounded-2xl bg-gray-50/50 text-sm focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none" 
                     placeholder="Search name or email...">
+                <button x-show="search && search.trim() !== ''" @click="search = ''; submitSearch();" 
+                    class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                    type="button">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
             </div>
         </div>
 
@@ -178,7 +242,7 @@
                         <th class="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-50">
+                <tbody class="divide-y divide-gray-50 transition-opacity duration-200" :class="isLoading ? 'opacity-50 pointer-events-none' : ''">
                     @forelse ($users as $u)
                         <tr class="hover:bg-blue-50/30 transition-colors group">
                             <td class="px-6 py-4">
@@ -249,11 +313,13 @@
             </table>
         </div>
 
-        @if($users->hasPages())
-            <div class="p-6 border-t border-gray-50 bg-gray-50/30">
-                {{ $users->links() }}
-            </div>
-        @endif
+        <div id="pagination-container" @click="handlePaginationClick($event)">
+            @if($users->hasPages())
+                <div class="p-6 border-t border-gray-50 bg-gray-50/30">
+                    {{ $users->links() }}
+                </div>
+            @endif
+        </div>
     </div>
 </div>
 @endsection

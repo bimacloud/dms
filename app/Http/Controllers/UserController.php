@@ -23,7 +23,7 @@ class UserController extends Controller
             });
         }
 
-        $users = $query->latest()->paginate(10);
+        $users = $query->latest()->paginate(10)->withQueryString();
         $roles = Role::all();
         $positions = Position::all();
         return view('users.index', compact('users', 'roles', 'positions'));

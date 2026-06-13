@@ -7,11 +7,69 @@
     openModal: false, 
     editMode: false, 
     category: { id: '', name: '', description: '' },
-    search: {{ Js::from(request('search')) }},
+    search: {{ Js::from(request('search')) }} || '',
+    isLoading: false,
+    debounceTimer: null,
+    init() {
+        this.$watch('search', value => {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = setTimeout(() => {
+                this.submitSearch();
+            }, 300);
+        });
+    },
     submitSearch() {
+        clearTimeout(this.debounceTimer);
         const url = new URL(window.location.href);
-        url.searchParams.set('search', this.search);
-        window.location.href = url.toString();
+        const cleanSearch = this.search ? this.search.trim() : '';
+        if (cleanSearch !== '') {
+            url.searchParams.set('search', cleanSearch);
+        } else {
+            url.searchParams.delete('search');
+        }
+        url.searchParams.delete('page');
+        this.loadUrl(url.toString());
+    },
+    loadUrl(url) {
+        this.isLoading = true;
+        window.history.pushState({}, '', url);
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            const newGrid = doc.querySelector('.grid-cols-1');
+            const currentGrid = this.$el.querySelector('.grid-cols-1');
+            if (newGrid && currentGrid) {
+                currentGrid.innerHTML = newGrid.innerHTML;
+            }
+            
+            const newPagination = doc.getElementById('pagination-container');
+            const currentPagination = this.$el.querySelector('#pagination-container');
+            if (currentPagination && newPagination) {
+                currentPagination.innerHTML = newPagination.innerHTML;
+            }
+            
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+        })
+        .catch(err => console.error(err))
+        .finally(() => {
+            this.isLoading = false;
+        });
+    },
+    handlePaginationClick(e) {
+        const link = e.target.closest('a');
+        if (link && link.href) {
+            e.preventDefault();
+            this.loadUrl(link.href);
+        }
     }
 }">
     <!-- Header Area -->
@@ -48,15 +106,21 @@
         <div class="p-6 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="relative flex-1 max-w-md">
                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-                    <i data-lucide="search" class="w-4 h-4"></i>
+                    <i x-show="!isLoading" data-lucide="search" class="w-4 h-4"></i>
+                    <i x-show="isLoading" data-lucide="loader-2" class="w-4 h-4 animate-spin text-blue-500" x-cloak></i>
                 </div>
                 <input type="text" x-model="search" @keyup.enter="submitSearch()"
-                    class="block w-full pl-11 pr-4 py-3 border border-gray-100 rounded-2xl bg-gray-50/50 text-sm focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none" 
+                    class="block w-full pl-11 pr-10 py-3 border border-gray-100 rounded-2xl bg-gray-50/50 text-sm focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none" 
                     placeholder="Search by name or description...">
+                <button x-show="search && search.trim() !== ''" @click="search = ''; submitSearch();" 
+                    class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                    type="button">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6 transition-opacity duration-200" :class="isLoading ? 'opacity-50 pointer-events-none' : ''">
             @forelse ($categories as $cat)
                 @php
                     // Generate a consistent gradient based on title
@@ -130,11 +194,13 @@
             @endforelse
         </div>
 
-        @if($categories->hasPages())
-            <div class="p-6 border-t border-gray-50 bg-gray-50/30">
-                {{ $categories->links() }}
-            </div>
-        @endif
+        <div id="pagination-container" @click="handlePaginationClick($event)">
+            @if($categories->hasPages())
+                <div class="p-6 border-t border-gray-50 bg-gray-50/30">
+                    {{ $categories->links() }}
+                </div>
+            @endif
+        </div>
     </div>
 
     <!-- Premium Modal -->
