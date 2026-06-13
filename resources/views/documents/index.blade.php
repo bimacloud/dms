@@ -121,8 +121,28 @@
             const menu = this.$refs.ctxMenu;
             if(menu) {
                 const rect = menu.getBoundingClientRect();
-                if(this.contextMenuX + rect.width > window.innerWidth) this.contextMenuX -= rect.width;
-                if(this.contextMenuY + rect.height > window.innerHeight) this.contextMenuY -= rect.height;
+                let x = e.clientX;
+                let y = e.clientY;
+                
+                if (x + rect.width > window.innerWidth) {
+                    x -= rect.width;
+                }
+                if (y + rect.height > window.innerHeight) {
+                    y -= rect.height;
+                }
+                
+                if (x < 8) x = 8;
+                if (y < 8) y = 8;
+                
+                if (x + rect.width > window.innerWidth - 8) {
+                    x = window.innerWidth - rect.width - 8;
+                }
+                if (y + rect.height > window.innerHeight - 8) {
+                    y = window.innerHeight - rect.height - 8;
+                }
+                
+                this.contextMenuX = x;
+                this.contextMenuY = y;
             }
         });
         this.contextMenuOpen = true;
@@ -414,8 +434,31 @@ class="relative min-h-screen max-w-7xl mx-auto">
 
                     <!-- PDF / Document Preview -->
                     <template x-if="previewMimeType === 'application/pdf'">
-                        <div class="w-full max-w-5xl h-full bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/20">
-                            <iframe :src="previewUrl" class="w-full h-full border-none"></iframe>
+                        <div class="w-full h-full flex items-center justify-center">
+                            <!-- Desktop PDF Preview -->
+                            <div class="hidden md:block w-full max-w-5xl h-full bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/20">
+                                <iframe :src="previewUrl" class="w-full h-full border-none"></iframe>
+                            </div>
+                            
+                            <!-- Mobile PDF Preview Fallback -->
+                            <div class="md:hidden w-full max-w-sm bg-[#0f172a]/80 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/10 text-center shadow-2xl flex flex-col justify-center items-center">
+                                <div class="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mb-6">
+                                    <i data-lucide="file-text" class="w-8 h-8 text-red-500"></i>
+                                </div>
+                                <h3 class="text-base font-black text-white mb-2 max-w-xs truncate" x-text="previewName"></h3>
+                                <p class="text-xs text-slate-400 mb-8 max-w-xs leading-relaxed">PDF Reader browser tidak mendukung pratinjau langsung di dalam aplikasi. Silakan buka dokumen di tab baru.</p>
+                                
+                                <div class="flex flex-col gap-3 w-full">
+                                    <a :href="previewUrl" target="_blank" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-2xl shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
+                                        <i data-lucide="external-link" class="w-4 h-4"></i>
+                                        Buka PDF
+                                    </a>
+                                    <a :href="previewUrl.replace('/preview', '/download')" class="w-full py-3.5 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-2xl border border-white/10 transition-all flex items-center justify-center gap-2">
+                                        <i data-lucide="download" class="w-4 h-4"></i>
+                                        Unduh
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     </template>
 

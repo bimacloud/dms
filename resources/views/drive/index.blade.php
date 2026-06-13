@@ -22,6 +22,8 @@ document.addEventListener('alpine:init', () => {
         shareModalDocTitle: '',
         shareModalDocType: 'file',
         fileToRename: null,
+        allFolders: {{ Js::from($allFolders) }},
+        selectedFolderId: '',
         
         // Preview State
         showPreviewModal: false,
@@ -74,8 +76,28 @@ document.addEventListener('alpine:init', () => {
                 const menu = this.$refs.ctxMenu;
                 if(menu) {
                     const rect = menu.getBoundingClientRect();
-                    if(this.contextMenuX + rect.width > window.innerWidth) this.contextMenuX -= rect.width;
-                    if(this.contextMenuY + rect.height > window.innerHeight) this.contextMenuY -= rect.height;
+                    let x = e.clientX;
+                    let y = e.clientY;
+                    
+                    if (x + rect.width > window.innerWidth) {
+                        x -= rect.width;
+                    }
+                    if (y + rect.height > window.innerHeight) {
+                        y -= rect.height;
+                    }
+                    
+                    if (x < 8) x = 8;
+                    if (y < 8) y = 8;
+                    
+                    if (x + rect.width > window.innerWidth - 8) {
+                        x = window.innerWidth - rect.width - 8;
+                    }
+                    if (y + rect.height > window.innerHeight - 8) {
+                        y = window.innerHeight - rect.height - 8;
+                    }
+                    
+                    this.contextMenuX = x;
+                    this.contextMenuY = y;
                 }
             });
             
@@ -105,10 +127,22 @@ document.addEventListener('alpine:init', () => {
         openMoveModal(type, id) {
             this.moveType = type === 'folder' ? 'Folder' : 'File';
             this.moveId = id;
+            this.selectedFolderId = '';
             this.moveTargetUrl = type === 'folder' 
                 ? '{{ url('folders') }}/' + id
                 : '{{ url('documents') }}/' + id;
             this.showMoveModal = true;
+        },
+        getSelectedFolderName() {
+            if (this.selectedFolderId === '') return 'Drive Utama (Root)';
+            const folder = this.allFolders.find(f => f.id === this.selectedFolderId);
+            return folder ? folder.name : 'Drive Utama (Root)';
+        },
+        isFolderDisabled(id, pathString) {
+            if (this.moveType !== 'Folder') return false;
+            if (this.moveId === id) return true;
+            const parents = pathString ? pathString.split(',') : [];
+            return parents.includes(this.moveId);
         },
         checkDragOver(e) {
             if (e.dataTransfer.types && e.dataTransfer.types.includes('Files') && !this.draggedType) {
@@ -473,7 +507,7 @@ document.addEventListener('alpine:init', () => {
 
     <!-- Move Modal -->
     <div x-show="showMoveModal" class="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md" x-cloak>
-        <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden" @click.away="showMoveModal = false">
+        <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md" @click.away="showMoveModal = false">
             <div class="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
                 <h3 class="text-lg font-black text-gray-900">Pindahkan <span x-text="moveType"></span></h3>
                 <i data-lucide="folder-input" class="w-6 h-6 text-blue-500"></i>
@@ -483,17 +517,74 @@ document.addEventListener('alpine:init', () => {
                 <input type="hidden" name="_method" value="PUT">
                 <div class="p-8 space-y-4">
                     <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Folder Tujuan</label>
-                    <select :name="moveType === 'Folder' ? 'parent_id' : 'folder_id'" 
-                        class="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all appearance-none cursor-pointer">
-                        <option value="">Drive Utama (Root)</option>
-                        @foreach($allFolders as $folderOption)
-                            <option value="{{ $folderOption->id }}" :disabled="moveId === '{{ $folderOption->id }}'">
-                                {{ $folderOption->name }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <div class="relative" x-data="{ dropdownOpen: false }" @click.away="dropdownOpen = false">
+                        <!-- Trigger Button -->
+                        <button type="button" @click="dropdownOpen = !dropdownOpen" 
+                            class="w-full px-6 py-4 pr-12 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold text-left outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all cursor-pointer flex items-center justify-between">
+                            <span x-text="getSelectedFolderName()" class="truncate text-gray-700"></span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 transition-transform duration-200" :class="{ 'rotate-180': dropdownOpen }"></i>
+                        </button>
+                        
+                        <!-- Hidden real select to submit with form -->
+                        <select :name="moveType === 'Folder' ? 'parent_id' : 'folder_id'" x-model="selectedFolderId" class="hidden">
+                            <option value="">Drive Utama (Root)</option>
+                            @foreach($allFolders as $folderOption)
+                                <option value="{{ $folderOption->id }}">{{ $folderOption->name }}</option>
+                            @endforeach
+                        </select>
+                        
+                        <!-- Custom Dropdown List -->
+                        <div x-show="dropdownOpen" 
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
+                             class="absolute z-[260] w-full mt-2 bg-white rounded-3xl shadow-2xl border border-gray-100 max-h-60 overflow-y-auto p-2 space-y-1" x-cloak>
+                            
+                            <!-- Root Option -->
+                            <button type="button" @click="selectedFolderId = ''; dropdownOpen = false" 
+                                class="w-full text-left px-4 py-3 text-xs font-bold rounded-2xl transition-all flex items-center hover:bg-blue-50"
+                                :class="selectedFolderId === '' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'">
+                                <i data-lucide="hard-drive" class="w-4 h-4 mr-3" :class="selectedFolderId === '' ? 'text-blue-500' : 'text-gray-400'"></i>
+                                Drive Utama (Root)
+                            </button>
+                            
+                            <!-- Folder Tree List -->
+                            @php
+                                $renderTreeList = function($folders, $parentId = null, $depth = 0, $parentPath = []) use (&$renderTreeList) {
+                                    foreach ($folders as $folder) {
+                                        if ($folder->parent_id === $parentId) {
+                                            $currentPath = array_merge($parentPath, [$folder->id]);
+                                            $pathString = implode(',', $parentPath);
+                                            $indentStyle = 'style="padding-left: ' . (($depth * 16) + 16) . 'px;"';
+                                            
+                                            echo '
+                                            <button type="button" 
+                                                @click="if(!isFolderDisabled(\'' . $folder->id . '\', \'' . $pathString . '\')) { selectedFolderId = \'' . $folder->id . '\'; dropdownOpen = false; }"
+                                                ' . $indentStyle . '
+                                                class="w-full text-left py-3 pr-4 text-xs font-bold rounded-2xl transition-all flex items-center group/opt"
+                                                :class="{
+                                                    \'bg-blue-50 text-blue-600\': selectedFolderId === \'' . $folder->id . '\',
+                                                    \'text-gray-700 hover:bg-gray-50\': selectedFolderId !== \'' . $folder->id . '\' && !isFolderDisabled(\'' . $folder->id . '\', \'' . $pathString . '\'),
+                                                    \'opacity-40 cursor-not-allowed text-gray-400\': isFolderDisabled(\'' . $folder->id . '\', \'' . $pathString . '\')
+                                                }"
+                                                :disabled="isFolderDisabled(\'' . $folder->id . '\', \'' . $pathString . '\')">
+                                                <i data-lucide="folder" class="w-4 h-4 mr-2 shrink-0" :class="selectedFolderId === \'' . $folder->id . '\' ? \'text-blue-500 fill-blue-500/20\' : \'text-amber-500 fill-amber-500/20\'"></i>
+                                                <span class="truncate">' . e($folder->name) . '</span>
+                                            </button>
+                                            ';
+                                            $renderTreeList($folders, $folder->id, $depth + 1, $currentPath);
+                                        }
+                                    }
+                                };
+                                $renderTreeList($allFolders, null, 0);
+                            @endphp
+                        </div>
+                    </div>
                 </div>
-                <div class="px-8 py-6 bg-gray-50/50 flex gap-3">
+                <div class="px-8 py-6 bg-gray-50/50 flex gap-3 rounded-b-[2.5rem]">
                     <button type="button" @click="showMoveModal = false" class="flex-1 py-3 text-xs font-bold text-gray-500 hover:text-gray-700 transition-all">Batal</button>
                     <button type="submit" class="flex-1 py-3 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95">Pindahkan</button>
                 </div>
@@ -549,8 +640,31 @@ document.addEventListener('alpine:init', () => {
                     </template>
 
                     <template x-if="previewMimeType === 'application/pdf'">
-                        <div class="w-full max-w-5xl h-full bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/20">
-                            <iframe :src="previewUrl" class="w-full h-full border-none"></iframe>
+                        <div class="w-full h-full flex items-center justify-center">
+                            <!-- Desktop PDF Preview -->
+                            <div class="hidden md:block w-full max-w-5xl h-full bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/20">
+                                <iframe :src="previewUrl" class="w-full h-full border-none"></iframe>
+                            </div>
+                            
+                            <!-- Mobile PDF Preview Fallback -->
+                            <div class="md:hidden w-full max-w-sm bg-[#0f172a]/80 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/10 text-center shadow-2xl flex flex-col justify-center items-center">
+                                <div class="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mb-6">
+                                    <i data-lucide="file-text" class="w-8 h-8 text-red-500"></i>
+                                </div>
+                                <h3 class="text-base font-black text-white mb-2 max-w-xs truncate" x-text="previewName"></h3>
+                                <p class="text-xs text-slate-400 mb-8 max-w-xs leading-relaxed">PDF Reader browser tidak mendukung pratinjau langsung di dalam aplikasi. Silakan buka dokumen di tab baru.</p>
+                                
+                                <div class="flex flex-col gap-3 w-full">
+                                    <a :href="previewUrl" target="_blank" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-2xl shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
+                                        <i data-lucide="external-link" class="w-4 h-4"></i>
+                                        Buka PDF
+                                    </a>
+                                    <a :href="previewUrl.replace('/preview', '/download')" class="w-full py-3.5 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-2xl border border-white/10 transition-all flex items-center justify-center gap-2">
+                                        <i data-lucide="download" class="w-4 h-4"></i>
+                                        Unduh
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     </template>
 
