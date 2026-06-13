@@ -21,6 +21,7 @@ document.addEventListener('alpine:init', () => {
         shareModalDocId: '',
         shareModalDocTitle: '',
         shareModalDocType: 'file',
+        fileToRename: null,
         
         // Preview State
         showPreviewModal: false,
@@ -96,6 +97,10 @@ document.addEventListener('alpine:init', () => {
             this.folderToRename = folderId;
             this.folderName = name;
             this.showNewFolderModal = false;
+        },
+        openFileRenameModal(fileId, name) {
+            this.fileToRename = fileId;
+            this.fileName = name;
         },
         openMoveModal(type, id) {
             this.moveType = type === 'folder' ? 'Folder' : 'File';
@@ -287,7 +292,7 @@ document.addEventListener('alpine:init', () => {
                 @endif
             </div>
 
-            <div class="flex gap-3 shrink-0">
+            <div class="hidden md:flex gap-3 shrink-0">
                 <button @click="document.getElementById('hiddenFileInput').click()" class="flex items-center px-6 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-2xl shadow-xl shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95">
                     <i data-lucide="upload-cloud" class="w-4 h-4 mr-2"></i> Unggah
                 </button>
@@ -317,6 +322,10 @@ document.addEventListener('alpine:init', () => {
                             <i data-lucide="folder" class="w-6 h-6 text-amber-500 fill-amber-500"></i>
                         </div>
                         <span class="text-xs font-bold text-gray-700 truncate flex-1" title="{{ $f->name }}">{{ $f->name }}</span>
+                        <button @click.stop.prevent="showContextMenu($event, 'folder', { id: '{{ $f->id }}', name: '{{ addslashes($f->name) }}' })"
+                            class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all shrink-0 ml-1">
+                            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                        </button>
                     </div>
                 @endforeach
             </div>
@@ -373,7 +382,10 @@ document.addEventListener('alpine:init', () => {
                                 </div>
                                 <div class="mt-2 flex items-center justify-between">
                                     <span class="text-[9px] font-bold text-gray-400 uppercase">{{ $file->size_formatted ?? ($file->size . ' B') }}</span>
-                                    <i data-lucide="more-horizontal" class="w-4 h-4 text-gray-300"></i>
+                                    <button @click.stop.prevent="showContextMenu($event, 'file', { id: '{{ $file->id }}', name: '{{ addslashes($file->display_name) }}', mime_type: '{{ $file->mime_type }}' })"
+                                        class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
+                                        <i data-lucide="more-horizontal" class="w-4 h-4"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -434,6 +446,58 @@ document.addEventListener('alpine:init', () => {
                     </div>
                 </form>
             </div>
+        </div>
+    </div>
+
+    <!-- Rename File Modal -->
+    <div x-show="fileToRename" class="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md" x-cloak>
+        <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden" @click.away="fileToRename = null">
+            <div class="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="text-lg font-black text-gray-900">Ubah Nama File</h3>
+                <i data-lucide="edit-3" class="w-6 h-6 text-blue-500"></i>
+            </div>
+            <form :action="`{{ url('documents') }}/${fileToRename}`" method="POST">
+                @csrf 
+                <input type="hidden" name="_method" value="PUT">
+                <div class="p-8">
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nama File</label>
+                    <input type="text" name="display_name" x-model="fileName" class="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all" required autofocus placeholder="Masukkan nama file...">
+                </div>
+                <div class="px-8 py-6 bg-gray-50/50 flex gap-3">
+                    <button type="button" @click="fileToRename = null" class="flex-1 py-3 text-xs font-bold text-gray-500 hover:text-gray-700 transition-all">Batal</button>
+                    <button type="submit" class="flex-1 py-3 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Move Modal -->
+    <div x-show="showMoveModal" class="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md" x-cloak>
+        <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden" @click.away="showMoveModal = false">
+            <div class="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="text-lg font-black text-gray-900">Pindahkan <span x-text="moveType"></span></h3>
+                <i data-lucide="folder-input" class="w-6 h-6 text-blue-500"></i>
+            </div>
+            <form :action="moveTargetUrl" method="POST">
+                @csrf 
+                <input type="hidden" name="_method" value="PUT">
+                <div class="p-8 space-y-4">
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Folder Tujuan</label>
+                    <select :name="moveType === 'Folder' ? 'parent_id' : 'folder_id'" 
+                        class="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all appearance-none cursor-pointer">
+                        <option value="">Drive Utama (Root)</option>
+                        @foreach($allFolders as $folderOption)
+                            <option value="{{ $folderOption->id }}" :disabled="moveId === '{{ $folderOption->id }}'">
+                                {{ $folderOption->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="px-8 py-6 bg-gray-50/50 flex gap-3">
+                    <button type="button" @click="showMoveModal = false" class="flex-1 py-3 text-xs font-bold text-gray-500 hover:text-gray-700 transition-all">Batal</button>
+                    <button type="submit" class="flex-1 py-3 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95">Pindahkan</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -535,6 +599,9 @@ document.addEventListener('alpine:init', () => {
                 <button @click="openRenameModal(contextMenuFolder.id, contextMenuFolder.name); contextMenuOpen = false" class="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 hover:bg-blue-50 rounded-2xl flex items-center transition-all">
                     <i data-lucide="edit-3" class="w-4 h-4 mr-3 text-amber-500"></i> Ubah Nama
                 </button>
+                <button @click="openMoveModal('folder', contextMenuFolder.id); contextMenuOpen = false" class="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 hover:bg-blue-50 rounded-2xl flex items-center transition-all">
+                    <i data-lucide="folder-input" class="w-4 h-4 mr-3 text-indigo-500"></i> Pindahkan
+                </button>
                 <div class="h-px bg-gray-100 my-1 mx-2"></div>
                 <button @click="openDeleteModal('folder', contextMenuFolder.name, '{{ url('folders') }}/' + contextMenuFolder.id); contextMenuOpen = false" class="w-full text-left px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 rounded-2xl flex items-center transition-all">
                     <i data-lucide="trash-2" class="w-4 h-4 mr-3"></i> Hapus Folder
@@ -550,6 +617,12 @@ document.addEventListener('alpine:init', () => {
                 <a :href="`{{ url('documents') }}/${contextMenuFile.id}/download`" class="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 hover:bg-blue-50 rounded-2xl flex items-center transition-all">
                     <i data-lucide="download-cloud" class="w-4 h-4 mr-3 text-green-500"></i> Unduh
                 </a>
+                <button @click="openFileRenameModal(contextMenuFile.id, contextMenuFile.name); contextMenuOpen = false" class="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 hover:bg-blue-50 rounded-2xl flex items-center transition-all">
+                    <i data-lucide="edit-3" class="w-4 h-4 mr-3 text-amber-500"></i> Ubah Nama
+                </button>
+                <button @click="openMoveModal('file', contextMenuFile.id); contextMenuOpen = false" class="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 hover:bg-blue-50 rounded-2xl flex items-center transition-all">
+                    <i data-lucide="folder-input" class="w-4 h-4 mr-3 text-indigo-500"></i> Pindahkan
+                </button>
                 <div class="h-px bg-gray-100 my-1 mx-2"></div>
                 <button @click="openDeleteModal('file', contextMenuFile.name, '{{ url('documents') }}/' + contextMenuFile.id); contextMenuOpen = false" class="w-full text-left px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 rounded-2xl flex items-center transition-all">
                     <i data-lucide="trash-2" class="w-4 h-4 mr-3"></i> Hapus File
@@ -558,6 +631,47 @@ document.addEventListener('alpine:init', () => {
          </template>
     </div>
 
+     <!-- Mobile Floating Action Button (FAB) -->
+     <div class="md:hidden fixed bottom-6 right-6 z-40" x-data="{ fabOpen: false }" @click.away="fabOpen = false">
+         <!-- FAB Options Menu -->
+         <div x-show="fabOpen" 
+              x-transition:enter="transition ease-out duration-200"
+              x-transition:enter-start="opacity-0 translate-y-4 scale-95"
+              x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+              x-transition:leave="transition ease-in duration-150"
+              x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+              x-transition:leave-end="opacity-0 translate-y-4 scale-95"
+              class="absolute bottom-16 right-0 mb-2 w-48 bg-white rounded-3xl shadow-2xl border border-gray-100 p-2 space-y-1" x-cloak>
+             
+             <button @click="document.getElementById('hiddenFileInput').click(); fabOpen = false" class="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 hover:bg-blue-50 rounded-2xl flex items-center transition-all">
+                 <i data-lucide="upload-cloud" class="w-4 h-4 mr-3 text-blue-600"></i> Unggah File
+             </button>
+             <button @click="showNewFolderModal = true; folderToRename = null; folderName = ''; fabOpen = false" class="w-full text-left px-4 py-3 text-xs font-bold text-gray-700 hover:bg-blue-50 rounded-2xl flex items-center transition-all">
+                 <i data-lucide="folder-plus" class="w-4 h-4 mr-3 text-amber-500"></i> Folder Baru
+             </button>
+         </div>
+
+         <!-- Main FAB Button -->
+         <button @click="fabOpen = !fabOpen" 
+             class="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-500/40 hover:bg-blue-700 transition-all active:scale-90 transform focus:outline-none">
+             <!-- We use raw svg or style for plus since Lucide icons are parsed once. Alternatively, we can let Lucide update it or use standard inline icon -->
+             <i data-lucide="plus" class="w-6 h-6 transition-transform duration-200" :class="{ 'rotate-45': fabOpen }"></i>
+         </button>
+     </div>
+
     @include('share.modal')
 </div>
+
+<!-- Mobile Drag and Drop Polyfill for Android/Touch Devices -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@3.0.0-rc.1/default.css">
+<script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@3.0.0-rc.1/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@3.0.0-rc.1/scroll-behaviour.min.js"></script>
+<script>
+    // Initialize touch-drag polyfill. To scroll easily, drag is triggered after holding the element for 400ms.
+    window.addEventListener('touchmove', function() {}, {passive: false});
+    MobileDragDrop.polyfill({
+        dragImageTranslateOverride: MobileDragDrop.scrollBehaviourDragImageTranslateOverride,
+        holdToDrag: 400
+    });
+</script>
 @endsection
